@@ -18,9 +18,9 @@ Simple interactive demo that computes and visualizes a Minimum Spanning Tree (MS
 - if you just want to change region, country, or local administrative area, you must change change the area at line 2 with the desired ISO 3166 code. You can find that at https://www.iso.org/obp/ui/#search.
 - To change which places you get, edit the filter `["place"~"city|town"]` by replacing or adding place types (e.g., "city", "town", "village", "hamlet", "suburb", "neighbourhood"), such as `["place"="city"]` for only cities, `["place"~"city|town|village"]` for multiple types, or simply `["place"]` to include any place.
 
-## Settings
+## Settings (only if running locally)
 
-If you want to change default behavior (tile server, animation defaults, k-nearest limits, etc.) edit the `CFG` object at the top of `script.js`.
+If you want to change default behavior (tile server, animation defaults, k-nearest limits, etc.) edit the `settings.json` file.
 
 Key `CFG` entries you might change:
 
@@ -30,7 +30,7 @@ Key `CFG` entries you might change:
 - `K_MIN`, `K_MAX`, `HOLD_LEVELS`, `TARGET_ZOOM_OFFSET`: control how many candidate neighbor lines are shown at different zoom levels.
 - `GC_*` values (`GC_MIN_SEGMENTS`, `GC_MAX_SEGMENTS`, `GC_SEGMENT_FACTOR`): control visual segmentation for great-circle curves between cities.
 
-After editing `script.js`, reload the page.
+After editing `settings.json`, reload the page.
 
 ## Performance & limits
 
