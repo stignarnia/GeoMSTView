@@ -1,0 +1,218 @@
+/* Core layout */
+html,
+body,
+#map {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #04101b; /* deep navy background behind map */
+}
+
+/* Controls panel */
+.controls {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background: rgba(6, 18, 35, 0.92); /* dark blue panel */
+  color: #e6f0ff; /* light text */
+  padding: 12px;
+  border-radius: 8px;
+  width: min(420px, calc(100% - 20px));
+  max-width: calc(100% - 20px);
+  box-sizing: border-box;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+}
+
+.datasetRow select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Buttons and rows */
+.btnRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.modalBtn {
+  min-width: 36px;
+  height: 28px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: #e6f0ff;
+}
+
+.modalHeader strong {
+  font-size: 14px;
+  flex: 1;
+  text-align: left;
+  color: #fff;
+}
+
+/* Button variants */
+.btnOk {
+  background: #1e7e34;
+  color: #fff;
+  border-color: #16692b;
+  transition: background 0.12s ease;
+}
+.btnOk:hover {
+  background: #16692b;
+}
+.btnOk:active {
+  background: #0f4a1e;
+}
+
+.btnClose {
+  background: #d9534f;
+  color: #fff;
+  border-color: #b52b2b;
+  transition: background 0.12s ease;
+}
+.btnClose:hover {
+  background: #c9302c;
+}
+.btnClose:active {
+  background: #a5221f;
+}
+
+.btnRevert {
+  background: #ffd54d;
+  color: #332;
+  border-color: #e6c24a;
+  transition: background 0.12s ease;
+}
+.btnRevert:hover {
+  background: #ffca28;
+}
+.btnRevert:active {
+  background: #e6b800;
+}
+
+/* Spinner */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 3px solid rgba(255, 255, 255, 0.12);
+  border-top-color: #a7d2ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  display: none; /* hidden by default; shown by script setting inline style */
+  vertical-align: middle;
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+}
+
+.spinnerText {
+  position: absolute;
+  right: 36px;
+  bottom: 10px;
+  font-size: 12px;
+  color: #cfe8ff;
+  display: none;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.legend {
+  font-size: 12px;
+}
+
+/* Styles moved from inline attributes in index.html */
+#titleText {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  text-align: center;
+  color: #e6f0ff;
+}
+.datasetRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#editCustom {
+  margin-left: 8px;
+  visibility: hidden;
+}
+.speedRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+#mstTotal {
+  margin-top: 6px;
+  font-weight: 600;
+  color: #cfe8ff;
+}
+.controls .description {
+  max-width: 260px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: #cbdff6;
+}
+#customModal {
+  display: none; /* opened using JS with display:flex */
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(2, 6, 12, 0.72);
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+.modalContent {
+  background: linear-gradient(180deg, #071c33, #041125);
+  padding: 12px;
+  border-radius: 8px;
+  max-width: 800px;
+  width: calc(100% - 40px);
+  margin: 40px auto;
+  position: relative;
+}
+.modalHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.modalButtons {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.customQueryArea {
+  width: 100%;
+  height: 220px;
+  font-family: monospace;
+  font-size: 12px;
+  text-align: left;
+  background: #021826;
+  color: #e6f6ff;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  padding: 8px;
+}

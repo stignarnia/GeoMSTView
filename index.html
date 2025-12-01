@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Prim MST — OpenStreetMap data</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="map"></div>
+    <div class="controls">
+      <div id="titleText" class="title"></div>
+      <div class="datasetRow">
+        <label for="datasetSelect">Dataset:</label>
+        <select id="datasetSelect">
+          <option value="capitals">Region capitals (default)</option>
+          <option value="preset">
+            Cities with population &gt; 50k (from OSM)
+          </option>
+          <option value="custom">Custom Overpass query...</option>
+        </select>
+        <button
+          id="editCustom"
+          title="Edit custom query"
+          class="modalBtn btnRevert"
+          aria-label="Edit"
+        >
+          ✎
+        </button>
+        <div
+          id="spinner"
+          class="spinner"
+          aria-hidden="true"
+          title="loading"
+        ></div>
+        <div id="spinnerText" class="spinnerText" aria-live="polite"></div>
+      </div>
+      <div class="speedRow">
+        <label for="speedRange">Animation speed:</label>
+        <input
+          id="speedRange"
+          type="range"
+          min="5"
+          max="1000"
+          step="5"
+          value="480"
+        />
+        <span id="speedLabel">525 ms</span>
+      </div>
+      <div class="btnRow">
+        <button
+          id="start"
+          class="modalBtn btnOk"
+          title="Start animation"
+          aria-label="Start"
+        >
+          ▶
+        </button>
+        <button
+          id="reset"
+          class="modalBtn btnRevert"
+          title="Reset"
+          aria-label="Reset"
+        >
+          ↺
+        </button>
+        <button
+          id="invalidateCache"
+          class="modalBtn btnClose"
+          title="Invalidate cache"
+          aria-label="Invalidate cache"
+        >
+          🗑
+        </button>
+      </div>
+
+      <div id="mstTotal">MST total length: — km</div>
+      <p class="description">
+        A Minimum Spanning Tree (MST) is a subset of edges that connects all
+        vertices in a graph without cycles and with the minimum possible total
+        edge weight. Here the edge weight is the Haversine distance between
+        cities.
+      </p>
+    </div>
+    <!-- Custom query modal -->
+    <div id="customModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="customModalTitle" tabindex="-1">
+      <div class="modalContent">
+        <div class="modalHeader">
+          <strong id="customModalTitle">Custom Overpass QL</strong>
+          <div class="modalButtons">
+            <button id="okTop" class="modalBtn btnOk" title="Run query">
+              OK
+            </button>
+            <button
+              id="revertQuery"
+              class="modalBtn btnRevert"
+              title="Revert to default"
+            >
+              ⤺
+            </button>
+            <button id="closeModal" class="modalBtn btnClose" title="Close">
+              ✕
+            </button>
+          </div>
+        </div>
+        <textarea id="customQuery" class="customQueryArea"></textarea>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="shared.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
