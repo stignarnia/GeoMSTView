@@ -1,6 +1,5 @@
 import { dedent } from "./utils.js";
-
-const CUSTOM_QUERY_KEY = "overpass_custom_query_v1";
+import { S } from "./state.js";
 
 let _onOk = null;
 let _onClose = null;
@@ -49,10 +48,7 @@ function getFocusableElements(root) {
 
 export function loadSavedQuery(
   storageKey,
-  defaultQuery = (window.S &&
-    window.S.CFG &&
-    window.S.CFG.DEFAULT_CITIES_QUERY) ||
-    ""
+  defaultQuery = (S && S.CFG && S.CFG.DEFAULT_CITIES_QUERY) || ""
 ) {
   try {
     const saved = localStorage.getItem(storageKey);
@@ -91,8 +87,8 @@ export function openCustomModal() {
     const controlsEl = document.querySelector(".controls");
     if (!modal || !textarea) return;
     textarea.value = loadSavedQuery(
-      CUSTOM_QUERY_KEY,
-      (window.S && window.S.CFG && window.S.CFG.DEFAULT_CITIES_QUERY) || ""
+      S.CUSTOM_QUERY_KEY,
+      (S && S.CFG && S.CFG.DEFAULT_CITIES_QUERY) || ""
     );
     modal.style.display = "flex";
     modal.setAttribute("aria-hidden", "false");
@@ -167,18 +163,19 @@ export function initCustomModalHandlers({ onOk, onClose } = {}) {
     if (textarea) {
       textarea.addEventListener("input", (e) => {
         try {
-          localStorage.setItem(CUSTOM_QUERY_KEY, e.target.value);
+          localStorage.setItem(S.CUSTOM_QUERY_KEY, e.target.value);
         } catch (e) {}
       });
     }
     if (revertBtn) {
       revertBtn.addEventListener("click", () => {
         try {
-          textarea.value = dedent(
-            (window.S && window.S.CFG && window.S.CFG.DEFAULT_CITIES_QUERY) ||
-              ""
-          );
-          localStorage.setItem(CUSTOM_QUERY_KEY, textarea.value);
+          if (!textarea) return;
+          const q = dedent((S && S.CFG && S.CFG.DEFAULT_CITIES_QUERY) || "");
+          textarea.value = q;
+          try {
+            textarea.dispatchEvent(new Event("input", { bubbles: true }));
+          } catch (e) {}
         } catch (e) {}
       });
     }

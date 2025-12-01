@@ -2,6 +2,9 @@ import CFG from "../settings.json" with { type: "json" };
 export const S = {
   CFG,
   map: null,
+  // storage keys
+  CUSTOM_QUERY_KEY: "overpass_custom_query_v1",
+  PRESET_QUERY_KEY: "overpass_preset_query_v1",
   baseTileLayer: null,
   currentTheme: CFG.DEFAULT_THEME || "dark",
   candidateCanvasRenderer: null,

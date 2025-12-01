@@ -12,6 +12,8 @@ import {
   loadSavedQuery,
 } from "./ui.js";
 
+let prevDataset = "capitals";
+
 // Initialize CSS variables, map and state
 applyCssVars();
 initMap();
@@ -63,9 +65,6 @@ document.getElementById("reset").addEventListener("click", () => {
   }
 });
 
-let prevDataset = "capitals";
-const PRESET_QUERY_KEY = "overpass_preset_query_v1";
-
 // initialize custom modal UI and handlers
 initCustomModalHandlers({
   onOk: async (q) => {
@@ -104,6 +103,47 @@ try {
   }
 } catch (e) {}
 
+// Invalidate cache button wiring
+try {
+  const invalidateBtn = document.getElementById("invalidateCache");
+  invalidateBtn &&
+    invalidateBtn.addEventListener("click", async () => {
+      try {
+        const datasetSelect = document.getElementById("datasetSelect");
+        if (!datasetSelect) return;
+        let query = "";
+        if (datasetSelect.value === "custom") {
+          const ta = document.getElementById("customQuery");
+          if (ta && ta.value) query = ta.value;
+          else {
+            const saved = localStorage.getItem(S.CUSTOM_QUERY_KEY);
+            query = saved || (S && S.CFG && S.CFG.DEFAULT_CITIES_QUERY) || "";
+          }
+        } else if (datasetSelect.value === "preset") {
+          query = loadSavedQuery(S.PRESET_QUERY_KEY);
+        } else {
+          alert("No cached query for this dataset to invalidate.");
+          return;
+        }
+        if (!query || !query.trim()) {
+          alert("No query to invalidate.");
+          return;
+        }
+        const key = await cacheKeyFromQuery(query);
+        try {
+          localStorage.removeItem(key);
+        } catch (e) {}
+        try {
+          S.gcCacheGlobal.clear();
+        } catch (e) {}
+        alert("Cache invalidated for current query.");
+      } catch (e) {
+        console.error(e);
+        alert("Error invalidating cache");
+      }
+    });
+} catch (e) {}
+
 document.getElementById("editCustom").addEventListener("click", () => {
   prevDataset = document.getElementById("datasetSelect").value;
   openCustomModal();
@@ -134,7 +174,7 @@ document
       S.map.setView(S.CFG.MAP_DEFAULT_CENTER, S.CFG.MAP_DEFAULT_ZOOM);
     } else if (v === "preset") {
       await runQueryAndRender(
-        loadSavedQuery(PRESET_QUERY_KEY),
+        loadSavedQuery(S.PRESET_QUERY_KEY),
         "Error fetching preset: "
       );
     }
