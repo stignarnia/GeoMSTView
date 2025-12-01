@@ -53,3 +53,23 @@ python -m http.server 8000
 - `script.js` — main UI logic, Leaflet rendering, caching and worker communication.
 - `worker.js` — performs MST, distance computations and great-circle point generation in a worker.
 - `shared.js` — math helpers shared between main thread and worker (`haversine`, `greatCirclePoints`, `dedent`, `gcKey`).
+
+## Files
+
+- `index.html` — page entry and layout.
+- `styles.css` — UI styles.
+- `settings.json` — configuration defaults (tile server, animation and performance settings).
+- `app/` — ES module sources for the application and worker:
+  - `app/main.js` — application entry (wires UI, worker and rendering).
+  - `app/init.js` — map initialization and theme handling.
+  - `app/render.js` — rendering and layer management (markers, candidate/MST drawing).
+  - `app/animation.js` — animation logic for growing MST edges.
+  - `app/worker.js` — Web Worker implementation (MST, distances, great-circle points).
+  - `app/shared.js` — pure math helpers shared between main thread and worker (`haversine`, `greatCirclePoints`, `gcKey`, `dedent`).
+  - `app/utils.js` — app utility helpers (`computeCitiesKey`, `lerpColor`, wrappers).
+  - `app/worker-comm.js` — worker creation and messaging helpers.
+  - `app/state.js` — shared runtime state object.
+  - `app/api.js` — Overpass fetch, caching and query helpers.
+  - `app/ui.js` — small UI helpers (spinner etc.).
+- `LICENSE` — project license.
+- `README.md` — this file.

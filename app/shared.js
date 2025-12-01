@@ -95,7 +95,6 @@ export function parseColor(c) {
       b: parseInt(hex.slice(4, 6), 16),
     };
   }
-  // Handle named colors
   const colors = {
     red: { r: 255, g: 0, b: 0 },
     blue: { r: 0, g: 0, b: 255 },
