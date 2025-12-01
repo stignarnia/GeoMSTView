@@ -19,6 +19,80 @@ applyCssVars();
 initMap();
 createWorker();
 
+// centralized reset for animation state (stop + clear)
+function resetAnimationState() {
+  try {
+    Anim.stopAnimation();
+    Render.clearMSTLayers();
+    S.animIndex = 0;
+    Anim.clearCurrentEdgeAnim();
+  } catch (e) {}
+}
+
+// apply saved theme (if any) and ensure map tiles match
+try {
+  // determine initial theme: prefer saved user choice, otherwise use
+  // system preference, otherwise fall back to settings.json default
+  let savedTheme = null;
+  try {
+    savedTheme = localStorage.getItem("theme");
+  } catch (e) {}
+  if (savedTheme === "light" || savedTheme === "dark") {
+    S.currentTheme = savedTheme;
+  } else {
+    try {
+      if (window.matchMedia) {
+        if (window.matchMedia("(prefers-color-scheme: dark)").matches)
+          S.currentTheme = "dark";
+        else if (window.matchMedia("(prefers-color-scheme: light)").matches)
+          S.currentTheme = "light";
+        else S.currentTheme = S.CFG.DEFAULT_THEME || "dark";
+      } else {
+        S.currentTheme = S.CFG.DEFAULT_THEME || "dark";
+      }
+    } catch (e) {
+      S.currentTheme = S.CFG.DEFAULT_THEME || "dark";
+    }
+  }
+  applyTheme(S.currentTheme);
+  const themeBtn = document.getElementById("themeToggle");
+  const themeIcon = themeBtn && themeBtn.querySelector(".themeIcon");
+  const iconForAction = (current) => (current === "light" ? "☾" : "☀");
+  const animateIconSwap = (el, ch) => {
+    if (!el || el.textContent === ch) return;
+    let stage = 0;
+    const onEnd = (ev) => {
+      if (ev.target !== el) return;
+      if (stage === 0) {
+        el.removeEventListener("transitionend", onEnd, true);
+        el.classList.remove("fade-out");
+        el.textContent = ch;
+        el.classList.add("fade-in");
+        stage = 1;
+        el.addEventListener("transitionend", onEnd, true);
+      } else {
+        el.removeEventListener("transitionend", onEnd, true);
+        el.classList.remove("fade-in");
+      }
+    };
+    el.addEventListener("transitionend", onEnd, true);
+    el.classList.add("fade-out");
+  };
+  // sync icon to represent the action (opposite of current theme)
+  if (themeIcon) themeIcon.textContent = iconForAction(S.currentTheme);
+  // animate only on user click
+  if (themeBtn)
+    themeBtn.addEventListener("click", () => {
+      const next = S.currentTheme === "light" ? "dark" : "light";
+      S.currentTheme = next;
+      try {
+        localStorage.setItem("theme", next);
+      } catch (e) {}
+      applyTheme(next);
+      animateIconSwap(themeIcon, iconForAction(next));
+    });
+} catch (e) {}
+
 setWorkerMessageHandler((msg) => {
   if (msg.type === "result") {
     try {
@@ -47,17 +121,11 @@ setWorkerMessageHandler((msg) => {
 
 // Wire basic controls
 document.getElementById("start").addEventListener("click", () => {
-  Render.clearMSTLayers();
-  Anim.stopAnimation();
-  S.animIndex = 0;
-  Anim.clearCurrentEdgeAnim();
+  resetAnimationState();
   Anim.startAnimation();
 });
 document.getElementById("reset").addEventListener("click", () => {
-  Anim.stopAnimation();
-  Render.clearMSTLayers();
-  S.animIndex = 0;
-  Anim.clearCurrentEdgeAnim();
+  resetAnimationState();
   try {
     S.map.setView(S.lastDatasetView.center, S.lastDatasetView.zoom);
   } catch (e) {
@@ -157,13 +225,9 @@ document
   .addEventListener("change", async (e) => {
     const v = e.target.value;
     updateEditButton();
+    // ensure animation state reset when dataset changes
+    resetAnimationState();
     if (v === "custom") {
-      try {
-        Anim.stopAnimation();
-        Render.clearMSTLayers();
-        S.animIndex = 0;
-        Anim.clearCurrentEdgeAnim();
-      } catch (e) {}
       openCustomModal();
       return;
     }
@@ -179,6 +243,17 @@ document
       );
     }
   });
+
+// Wire algorithm change to reset animation state as well
+try {
+  const algoSel = document.getElementById("algoSelect");
+  if (algoSel) {
+    algoSel.addEventListener("change", (e) => {
+      S.currentAlgorithm = e.target.value;
+      resetAnimationState();
+    });
+  }
+} catch (e) {}
 
 // Endpoint input wiring
 try {

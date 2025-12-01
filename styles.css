@@ -159,7 +159,8 @@ body,
 .spinnerText.visible {
   opacity: 1;
   transform: translateY(0) scale(1);
-  transition: opacity var(--transition-expand), transform var(--transition-expand);
+  transition: opacity var(--transition-expand),
+    transform var(--transition-expand);
 }
 
 @keyframes spin {
@@ -223,8 +224,10 @@ body,
 }
 #editCustom {
   opacity: 0;
-  transform: translateY(calc(-1 * var(--anim-offset-y))) scale(var(--anim-scale));
-  transition: opacity var(--transition-expand), transform var(--transition-expand);
+  transform: translateY(calc(-1 * var(--anim-offset-y)))
+    scale(var(--anim-scale));
+  transition: opacity var(--transition-expand),
+    transform var(--transition-expand);
   pointer-events: none;
 }
 
@@ -265,6 +268,30 @@ body,
   align-items: center;
   justify-content: center;
   z-index: var(--z-modal);
+}
+.modalContent {
+  will-change: transform, opacity;
+}
+/* Animated visibility for modal */
+#customModal {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--modal-anim-ms) ease-out;
+}
+#customModal.visible {
+  display: flex;
+  opacity: 1;
+  pointer-events: auto;
+}
+.modalContent {
+  transform: translateY(var(--anim-offset-y)) scale(var(--anim-scale));
+  opacity: 0;
+  transition: transform var(--modal-anim-ms) ease-out,
+    opacity var(--modal-anim-ms) ease-out;
+}
+#customModal.visible .modalContent {
+  transform: translateY(0) scale(1);
+  opacity: 1;
 }
 .modalContent {
   background: linear-gradient(
@@ -375,6 +402,6 @@ body,
 
 /* Smooth color transitions for highlight markers */
 .leaflet-interactive.highlight-marker {
-  transition: stroke-opacity var(--transition-fade), fill-opacity var(--transition-fade),
-    opacity var(--transition-fade);
+  transition: stroke-opacity var(--transition-fade),
+    fill-opacity var(--transition-fade), opacity var(--transition-fade);
 }

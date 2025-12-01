@@ -148,6 +148,7 @@
     "transform-icon-scale": "0.85",
     "transform-arrow-rotate": "180deg",
     "controls-side-margin": "20px",
-    "controls-modal-margin": "40px"
+    "controls-modal-margin": "40px",
+    "modal-anim-ms": "260ms"
   }
 }

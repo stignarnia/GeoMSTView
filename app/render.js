@@ -204,13 +204,13 @@ export async function renderCities(list, postCompute = true) {
 
   // zoom handler
   if (typeof S.map.getZoom === "function") {
-    if (!S._lastZoom) S._lastZoom = S.map.getZoom();
+    if (!S.lastZoom) S.lastZoom = S.map.getZoom();
     if (S._mstZoomHandler) S.map.off("zoomend", S._mstZoomHandler);
     S._mstZoomHandler = function () {
       const newZ = S.map.getZoom();
-      if (Math.abs(newZ - S._lastZoom) >= S.CFG.ZOOM_REDRAW_THRESHOLD)
+      if (Math.abs(newZ - S.lastZoom) >= S.CFG.ZOOM_REDRAW_THRESHOLD)
         redrawCandidateLines();
-      S._lastZoom = newZ;
+      S.lastZoom = newZ;
     };
     S.map.on("zoomend", S._mstZoomHandler);
   }
