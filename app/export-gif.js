@@ -11,7 +11,12 @@ let closeExportModalBtn = null
 function createWorkerBlob() {
   // Fetch the worker script and create a blob URL
   return fetch('https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js')
-    .then(response => response.text())
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`Failed to fetch worker script: ${response.status} ${response.statusText}`)
+      }
+      return response.text()
+    })
     .then(workerCode => {
       const blob = new Blob([workerCode], { type: 'application/javascript' })
       return URL.createObjectURL(blob)
@@ -176,6 +181,7 @@ export async function exportAnimationAsGif() {
   // Track temporary layers for cleanup
   const tempHighlights = []
   const tempPolylines = []
+  let workerUrl = null
   
   // Helper function to clean up temporary layers
   const cleanupTempLayers = () => {
@@ -219,6 +225,17 @@ export async function exportAnimationAsGif() {
       if (S.map.tap) S.map.tap.enable()
     } catch (e) {}
   }
+  
+  // Centralized cleanup function
+  const cleanup = () => {
+    cleanupTempLayers()
+    enableMapInteractions()
+    document.body.classList.remove("exporting-gif")
+    if (workerUrl) {
+      URL.revokeObjectURL(workerUrl)
+      workerUrl = null
+    }
+  }
 
   try {
     // Save current map state
@@ -245,12 +262,14 @@ export async function exportAnimationAsGif() {
     updateExportProgress(5, "Capturing frames...", "Frame 0 of " + S.currentMST.length)
 
     // Create worker blob URL to avoid CORS issues
-    let workerUrl
     try {
       workerUrl = await createWorkerBlob()
     } catch (workerError) {
       console.error("Failed to load worker script:", workerError)
-      throw new Error("Failed to load GIF encoder worker. Please check your internet connection.")
+      cleanup()
+      hideExportModal()
+      alert("Failed to load GIF encoder worker. Please check your internet connection.")
+      return
     }
 
     // Initialize GIF encoder
@@ -269,10 +288,7 @@ export async function exportAnimationAsGif() {
       gif.addFrame(initialCanvas, { delay: gifConfig.INITIAL_FRAME_DELAY_MS || 500 })
     } catch (error) {
       if (error.message === "CORS_ERROR") {
-        cleanupTempLayers()
-        enableMapInteractions()
-        document.body.classList.remove("exporting-gif")
-        if (workerUrl) URL.revokeObjectURL(workerUrl)
+        cleanup()
         hideExportModal()
         alert(
           "GIF export failed due to CORS restrictions from the tile server.\n\n" +
@@ -338,17 +354,8 @@ export async function exportAnimationAsGif() {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
 
-      // Cleanup temporary layers
-      cleanupTempLayers()
-      
-      // Cleanup worker URL
-      if (workerUrl) URL.revokeObjectURL(workerUrl)
-      
-      // Re-enable map interactions
-      enableMapInteractions()
-      
-      // Restore UI
-      document.body.classList.remove("exporting-gif")
+      // Cleanup all resources
+      cleanup()
       
       setTimeout(() => {
         hideExportModal()
@@ -359,9 +366,7 @@ export async function exportAnimationAsGif() {
 
   } catch (error) {
     console.error("Export error:", error)
-    cleanupTempLayers()
-    enableMapInteractions()
-    document.body.classList.remove("exporting-gif")
+    cleanup()
     hideExportModal()
     alert("Failed to export GIF: " + error.message)
   }
