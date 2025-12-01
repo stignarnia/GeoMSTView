@@ -11,6 +11,7 @@ import {
   updateEditButton,
   loadSavedQuery,
 } from "./ui.js";
+import { registerServiceWorker } from "./pwa.js";
 
 let prevDataset = "capitals";
 
@@ -290,6 +291,11 @@ try {
 } catch (e) {}
 try {
   document.title = S.CFG.TITLE_TEXT;
+} catch (e) {}
+
+// Register service worker from the module (resolves SW path relative to this file)
+try {
+  registerServiceWorker();
 } catch (e) {}
 
 // Wire animation speed slider (read values only from settings)

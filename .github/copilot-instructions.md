@@ -18,24 +18,24 @@ GeoMSTView is an interactive web application that visualizes Minimum Spanning Tr
 ```
 /
 ├── index.html           # Main HTML entry point
-├── styles.css          # All application styles
-├── settings.json       # Configuration (tile servers, animation, limits)
-├── manifest.json       # PWA manifest
-├── sw.js              # Service worker for PWA
-├── favicon.png        # Application icon
-└── app/               # ES module sources
-    ├── main.js        # Application entry and orchestration
-    ├── init.js        # Map initialization and theme handling
-    ├── render.js      # Leaflet rendering and layer management
-    ├── animation.js   # MST edge animation logic
-    ├── worker.js      # Web Worker (MST computation, distances)
-    ├── shared.js      # Shared utilities (haversine, great circles)
-    ├── utils.js       # App-specific utility functions
-    ├── worker-comm.js # Worker creation and messaging
-    ├── state.js       # Shared runtime state
-    ├── api.js         # Overpass API fetch and caching
-    ├── ui.js          # UI helpers (spinner, modals)
-    └── pwa.js         # Service worker registration
+├── styles.css           # All application styles
+├── settings.json        # Configuration (tile servers, animation, limits)
+├── manifest.json        # PWA manifest
+├── favicon.png          # Application icon
+└── app/                 # ES module sources
+    ├── main.js          # Application entry and orchestration
+    ├── init.js          # Map initialization and theme handling
+    ├── render.js        # Leaflet rendering and layer management
+    ├── animation.js     # MST edge animation logic
+    ├── worker.js        # Web Worker (MST computation, distances)
+    ├── shared.js        # Shared utilities (haversine, great circles)
+    ├── utils.js         # App-specific utility functions
+    ├── worker-comm.js   # Worker creation and messaging
+    ├── state.js         # Shared runtime state
+    ├── api.js           # Overpass API fetch and caching
+    ├── ui.js            # UI helpers (spinner, modals)
+    ├── pwa.js           # Service worker registration (module)
+    └── sw.js            # Service worker for PWA
 ```
 
 ## Development Workflow

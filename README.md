@@ -5,10 +5,11 @@ Simple interactive demo that computes and visualizes a Minimum Spanning Tree (MS
 ## Quick start
 
 1. View the hosted demo at: https://geomstview.pages.dev.
-2. To run locally you must use a local static server (see below) — double-clicking `index.html` will not work.
-3. Choose a dataset from the `Dataset` control: `capitals` (built-in sample), `preset` (a larger preset Overpass query), or `custom` to paste/run your own Overpass QL query.
-4. Press the ▶ `Start` button to animate MST edges being added. Use `Reset` to clear the animation or `🗑` to invalidate cached Overpass results for the current query.
-5. Use the `Animation speed` slider to slow down or speed up the edge animation.
+2. Install it as an app if you want! (It's a PWA, visit the link in Chrome or Safari on your phone and use "Install app" from the menu.)
+3. To run it locally you must use a local static server (see below) — double-clicking `index.html` will not work.
+4. Choose a dataset from the `Dataset` control: `capitals` (built-in sample), `preset` (a larger preset Overpass query), or `custom` to paste/run your own Overpass QL query.
+5. Press the ▶ `Start` button to animate MST edges being added. Use `Reset` to clear the animation or `🗑` to invalidate cached Overpass results for the current query.
+6. Use the `Animation speed` slider to slow down or speed up the edge animation.
 
 ## Custom Overpass queries
 
