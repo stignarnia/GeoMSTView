@@ -3,6 +3,13 @@ const CFG = {
   MAP_DEFAULT_CENTER: [41.9, 12.5],
   // MAP_DEFAULT_ZOOM: initial zoom level when centering a dataset
   MAP_DEFAULT_ZOOM: 6,
+  // Animation timing constants
+  EDGE_GROWTH_DURATION_FACTOR: 0.8,
+  HIGHLIGHT_FADE_IN_DELAY_MS: 50,
+  THEME_ICON_SWAP_DELAY_MS: 180,
+  THEME_ICON_FADE_OUT_DURATION_MS: 300,
+  // Zoom redraw threshold
+  ZOOM_REDRAW_THRESHOLD: 1,
   // TILE_URL / TILE_MAX_ZOOM / TILE_ATTRIBUTION: tile layer settings
   // Dark tile layer (Carto Dark Matter)
   TILE_URL: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
@@ -280,22 +287,22 @@ function addWrappedPolyline(latlngs, options, collectArray) {
 // Globals for current dataset and layers
 let currentCities = [];
 let currentAlgorithm = "prim"; // Track selected algorithm
-let markers = [];
-let candidateLines = [];
-let mstLines = [];
-let highlightMarkers = [];
+const markers = [];
+const candidateLines = [];
+const mstLines = [];
+const highlightMarkers = [];
 let currentMST = [];
 let animIndex = 0;
 let animateRafId = null;
 let animateLastStepTs = 0;
 // animation delay in ms (controlled by UI)
 let animationDelay = CFG.ANIMATION_DELAY_DEFAULT;
-let lastDatasetView = {
+const lastDatasetView = {
   center: CFG.MAP_DEFAULT_CENTER.slice(),
   zoom: CFG.MAP_DEFAULT_ZOOM,
 };
 // global cache for great-circle points to avoid recomputation
-let gcCacheGlobal = new Map();
+const gcCacheGlobal = new Map();
 // stable key for currentCities to avoid unnecessary cache clears
 let lastCitiesKey = null;
 
@@ -656,7 +663,7 @@ function renderCities(list) {
   if (mstZoomHandler) map.off("zoomend", mstZoomHandler);
   mstZoomHandler = function () {
     const newZ = map.getZoom();
-    if (Math.abs(newZ - lastZoom) >= 1) {
+    if (Math.abs(newZ - lastZoom) >= CFG.ZOOM_REDRAW_THRESHOLD) {
       redrawCandidateLines();
     }
     lastZoom = newZ;
@@ -676,28 +683,12 @@ let currentEdgeAnim = null;
 
 // Helper function to interpolate between two colors
 function lerpColor(color1, color2, t) {
-  // Parse hex colors
-  const parseColor = (c) => {
-    if (c.startsWith("#")) {
-      const hex = c.slice(1);
-      return {
-        r: parseInt(hex.slice(0, 2), 16),
-        g: parseInt(hex.slice(2, 4), 16),
-        b: parseInt(hex.slice(4, 6), 16),
-      };
-    }
-    // Handle named colors
-    const colors = {
-      red: { r: 255, g: 0, b: 0 },
-      blue: { r: 0, g: 0, b: 255 },
-      cyan: { r: 0, g: 255, b: 255 },
-      yellow: { r: 255, g: 255, b: 0 },
-    };
-    return colors[c] || { r: 255, g: 255, b: 255 };
-  };
+  // Use shared parseColor utility
+  const parseColorFn =
+    (shared && shared.parseColor) || ((c) => ({ r: 255, g: 255, b: 255 }));
 
-  const c1 = parseColor(color1);
-  const c2 = parseColor(color2);
+  const c1 = parseColorFn(color1);
+  const c2 = parseColorFn(color2);
 
   const r = Math.round(c1.r + (c2.r - c1.r) * t);
   const g = Math.round(c1.g + (c2.g - c1.g) * t);
@@ -762,7 +753,7 @@ function animateStep() {
       h1.setStyle({ fillOpacity: CFG.HIGHLIGHT_FILL_OPACITY, opacity: 1 });
       h2.setStyle({ fillOpacity: CFG.HIGHLIGHT_FILL_OPACITY, opacity: 1 });
     } catch (e) {}
-  }, 50);
+  }, CFG.HIGHLIGHT_FADE_IN_DELAY_MS);
 
   // Start animating the edge growth
   currentEdgeAnim = {
@@ -779,7 +770,10 @@ function updateEdgeAnimation(timestamp) {
   if (!currentEdgeAnim) return true; // Edge animation complete
 
   const elapsed = timestamp - currentEdgeAnim.startTime;
-  const duration = Math.max(100, animationDelay * 0.8); // Edge grows in 80% of step delay
+  const duration = Math.max(
+    100,
+    animationDelay * CFG.EDGE_GROWTH_DURATION_FACTOR
+  ); // Edge grows in 80% of step delay
   currentEdgeAnim.progress = Math.min(1, elapsed / duration);
 
   // Remove old polyline parts
@@ -890,8 +884,11 @@ try {
           iconEl.textContent = iconChar;
           iconEl.classList.remove("fade-out");
           iconEl.classList.add("fade-in");
-          setTimeout(() => iconEl.classList.remove("fade-in"), 300);
-        }, 180);
+          setTimeout(
+            () => iconEl.classList.remove("fade-in"),
+            CFG.THEME_ICON_FADE_OUT_DURATION_MS
+          );
+        }, CFG.THEME_ICON_SWAP_DELAY_MS);
       } catch (e) {
         iconEl.textContent = iconChar;
       }

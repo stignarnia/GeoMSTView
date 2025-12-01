@@ -95,6 +95,26 @@
       return x + "|" + y;
     }
     self.__MST_shared.gcKey = gcKey;
+    // parse hex or named colors to RGB object
+    function parseColor(c) {
+      if (c.startsWith("#")) {
+        const hex = c.slice(1);
+        return {
+          r: parseInt(hex.slice(0, 2), 16),
+          g: parseInt(hex.slice(2, 4), 16),
+          b: parseInt(hex.slice(4, 6), 16),
+        };
+      }
+      // Handle named colors
+      const colors = {
+        red: { r: 255, g: 0, b: 0 },
+        blue: { r: 0, g: 0, b: 255 },
+        cyan: { r: 0, g: 255, b: 255 },
+        yellow: { r: 255, g: 255, b: 0 },
+      };
+      return colors[c] || { r: 255, g: 255, b: 255 };
+    }
+    self.__MST_shared.parseColor = parseColor;
   } catch (e) {
     // ignore in exotic environments
   }
