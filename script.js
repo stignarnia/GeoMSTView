@@ -14,8 +14,7 @@ const CFG = {
   // default theme: 'dark' or 'light'
   DEFAULT_THEME: "dark",
   // TITLE_TEXT: document title and UI title text
-  TITLE_TEXT:
-    "Prim MST visualization — OpenStreetMap geographic data (Haversine)",
+  TITLE_TEXT: "MST Visualization — OpenStreetMap geographic data (Haversine)",
   // WRAP_LON_THRESHOLD: longitude jump threshold (deg) to split polylines
   WRAP_LON_THRESHOLD: 180,
   // SPINNER_TEXT: text shown next to loading spinner
@@ -106,13 +105,8 @@ CFG.ANIMATION_DELAY_DEFAULT =
   CFG.SPEED_RANGE.min + CFG.SPEED_RANGE.max - CFG.SPEED_RANGE.default;
 
 const map = L.map("map", {
-  zoomControl: false
+  zoomControl: false,
 }).setView(CFG.MAP_DEFAULT_CENTER, CFG.MAP_DEFAULT_ZOOM);
-
-// Add zoom control to bottom left
-L.control.zoom({
-  position: 'bottomleft'
-}).addTo(map);
 
 // base tile layer (we will replace URL on theme toggle)
 let baseTileLayer = L.tileLayer(CFG.TILE_URL, {
@@ -267,6 +261,7 @@ function addWrappedPolyline(latlngs, options, collectArray) {
 
 // Globals for current dataset and layers
 let currentCities = [];
+let currentAlgorithm = "prim"; // Track selected algorithm
 let markers = [];
 let candidateLines = [];
 let mstLines = [];
@@ -552,6 +547,7 @@ function renderCities(list) {
   computeWorker.postMessage({
     type: "compute",
     cities: currentCities,
+    algorithm: currentAlgorithm, // Pass selected algorithm
     cfg: {
       K_MAX: CFG.K_MAX,
       GC_MIN_SEGMENTS: CFG.GC_MIN_SEGMENTS,
@@ -721,13 +717,16 @@ try {
 
 // Collapse toggle wiring
 try {
-  const collapseToggleBtn = document.getElementById('collapseToggle');
-  const controlsPanel = document.querySelector('.controls');
+  const collapseToggleBtn = document.getElementById("collapseToggle");
+  const controlsPanel = document.querySelector(".controls");
   if (collapseToggleBtn && controlsPanel) {
-    collapseToggleBtn.addEventListener('click', () => {
-      const isCollapsed = controlsPanel.classList.toggle('collapsed');
-      collapseToggleBtn.title = isCollapsed ? 'Expand panel' : 'Collapse panel';
-      collapseToggleBtn.setAttribute('aria-label', isCollapsed ? 'Expand panel' : 'Collapse panel');
+    collapseToggleBtn.addEventListener("click", () => {
+      const isCollapsed = controlsPanel.classList.toggle("collapsed");
+      collapseToggleBtn.title = isCollapsed ? "Expand panel" : "Collapse panel";
+      collapseToggleBtn.setAttribute(
+        "aria-label",
+        isCollapsed ? "Expand panel" : "Collapse panel"
+      );
     });
   }
 } catch (e) {}
@@ -983,6 +982,17 @@ try {
 } catch (e) {}
 try {
   document.title = CFG.TITLE_TEXT;
+} catch (e) {}
+
+// Algorithm selection wiring
+try {
+  document.getElementById("algoSelect").addEventListener("change", (e) => {
+    currentAlgorithm = e.target.value;
+    // Recompute MST with selected algorithm
+    if (currentCities && currentCities.length) {
+      renderCities(currentCities);
+    }
+  });
 } catch (e) {}
 
 // speed control wiring (inverted: left = slower)

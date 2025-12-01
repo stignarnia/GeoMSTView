@@ -37,30 +37,82 @@ self.addEventListener("message", async (ev) => {
       }
     }
 
-    // Prim's algorithm
-    const inMST = new Array(n).fill(false);
-    const minDist = new Array(n).fill(Infinity);
-    const parent = new Array(n).fill(-1);
+    // MST algorithm selection
+    const algorithm = msg.algorithm || "prim";
     const mst = [];
-    if (n > 0) {
-      minDist[0] = 0;
-      for (let iter = 0; iter < n; iter++) {
-        let u = -1,
-          best = Infinity;
-        for (let i = 0; i < n; i++)
-          if (!inMST[i] && minDist[i] < best) {
-            best = minDist[i];
-            u = i;
-          }
-        if (u === -1) break;
-        inMST[u] = true;
-        if (parent[u] !== -1) mst.push({ u: parent[u], v: u, w: best });
-        for (let v = 0; v < n; v++) {
-          if (inMST[v] || v === u) continue;
-          const d = dist[u][v];
-          if (d < minDist[v]) {
-            minDist[v] = d;
-            parent[v] = u;
+
+    if (algorithm === "kruskal") {
+      // Kruskal's algorithm using Union-Find
+      // Build edge list
+      const edges = [];
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          edges.push({ u: i, v: j, w: dist[i][j] });
+        }
+      }
+      // Sort edges by weight
+      edges.sort((a, b) => a.w - b.w);
+
+      // Union-Find data structure
+      const parent = new Array(n).fill(null).map((_, i) => i);
+      const rank = new Array(n).fill(0);
+
+      function find(x) {
+        if (parent[x] !== x) {
+          parent[x] = find(parent[x]); // Path compression
+        }
+        return parent[x];
+      }
+
+      function union(x, y) {
+        const rootX = find(x);
+        const rootY = find(y);
+        if (rootX === rootY) return false;
+
+        // Union by rank
+        if (rank[rootX] < rank[rootY]) {
+          parent[rootX] = rootY;
+        } else if (rank[rootX] > rank[rootY]) {
+          parent[rootY] = rootX;
+        } else {
+          parent[rootY] = rootX;
+          rank[rootX]++;
+        }
+        return true;
+      }
+
+      // Build MST
+      for (const edge of edges) {
+        if (union(edge.u, edge.v)) {
+          mst.push(edge);
+          if (mst.length === n - 1) break; // MST complete
+        }
+      }
+    } else {
+      // Prim's algorithm (default)
+      const inMST = new Array(n).fill(false);
+      const minDist = new Array(n).fill(Infinity);
+      const parent = new Array(n).fill(-1);
+      if (n > 0) {
+        minDist[0] = 0;
+        for (let iter = 0; iter < n; iter++) {
+          let u = -1,
+            best = Infinity;
+          for (let i = 0; i < n; i++)
+            if (!inMST[i] && minDist[i] < best) {
+              best = minDist[i];
+              u = i;
+            }
+          if (u === -1) break;
+          inMST[u] = true;
+          if (parent[u] !== -1) mst.push({ u: parent[u], v: u, w: best });
+          for (let v = 0; v < n; v++) {
+            if (inMST[v] || v === u) continue;
+            const d = dist[u][v];
+            if (d < minDist[v]) {
+              minDist[v] = d;
+              parent[v] = u;
+            }
           }
         }
       }

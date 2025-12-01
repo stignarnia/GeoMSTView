@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Prim MST — OpenStreetMap data</title>
+    <title>MST Visualization — OpenStreetMap data</title>
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -13,7 +13,12 @@
   <body>
     <div id="map"></div>
     <div class="controls">
-      <button id="collapseToggle" class="collapseToggle" title="Collapse panel" aria-label="Collapse panel">
+      <button
+        id="collapseToggle"
+        class="collapseToggle"
+        title="Collapse panel"
+        aria-label="Collapse panel"
+      >
         <span class="collapseArrow">▼</span>
       </button>
       <div id="titleText" class="title"></div>
@@ -41,6 +46,14 @@
           title="loading"
         ></div>
         <div id="spinnerText" class="spinnerText" aria-live="polite"></div>
+      </div>
+      <div class="datasetRow">
+        <label for="algoSelect">Algorithm:</label>
+        <select id="algoSelect">
+          <option value="prim">Prim (default)</option>
+          <option value="kruskal">Kruskal (slower for big datasets)</option>
+        </select>
+        <div class="algoSpacer"></div>
       </div>
       <div class="speedRow">
         <label for="speedRange">Animation speed:</label>
