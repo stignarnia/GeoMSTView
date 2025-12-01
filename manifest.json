@@ -1,0 +1,26 @@
+{
+  "name": "GeoMSTView - MST Visualization",
+  "short_name": "GeoMSTView",
+  "description": "Interactive Minimum Spanning Tree visualization over OpenStreetMap data using Prim and Kruskal algorithms",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#04101b",
+  "theme_color": "#04101b",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "favicon.png",
+      "sizes": "192x192 512x512 1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "favicon.png",
+      "sizes": "192x192 512x512 1024x1024",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["education", "utilities"],
+  "screenshots": []
+}

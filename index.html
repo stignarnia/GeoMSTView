@@ -4,12 +4,28 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>MST Visualization — OpenStreetMap data</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Interactive Minimum Spanning Tree visualization over OpenStreetMap data using Prim and Kruskal algorithms" />
+    <meta name="theme-color" content="#04101b" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="GeoMSTView" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json" />
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="apple-touch-icon" href="favicon.png" />
+    
+    <!-- Stylesheets -->
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     />
     <link rel="stylesheet" href="styles.css" />
-    <link rel="icon" type="image/png" href="favicon.png" />
   </head>
   <body>
     <div id="map"></div>
@@ -164,5 +180,6 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script type="module" src="app/main.js"></script>
+    <script src="app/pwa.js"></script>
   </body>
 </html>
