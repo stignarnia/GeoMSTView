@@ -297,7 +297,7 @@ let animateRafId = null;
 let animateLastStepTs = 0;
 // animation delay in ms (controlled by UI)
 let animationDelay = CFG.ANIMATION_DELAY_DEFAULT;
-const lastDatasetView = {
+let lastDatasetView = {
   center: CFG.MAP_DEFAULT_CENTER.slice(),
   zoom: CFG.MAP_DEFAULT_ZOOM,
 };
