@@ -9,10 +9,14 @@ export function showSpinner(text, defaultText) {
   try {
     const s = document.getElementById("spinner");
     const st = document.getElementById("spinnerText");
-    if (s) s.style.display = "inline-block";
+    if (s) {
+      s.classList.add("visible");
+      s.setAttribute("aria-hidden", "false");
+    }
     if (st) {
-      st.style.display = "inline-block";
+      st.classList.add("visible");
       st.textContent = text !== undefined ? text : defaultText || "Loading...";
+      st.setAttribute("aria-hidden", "false");
     }
   } catch (e) {}
 }
@@ -21,8 +25,14 @@ export function hideSpinner() {
   try {
     const s = document.getElementById("spinner");
     const st = document.getElementById("spinnerText");
-    if (s) s.style.display = "none";
-    if (st) st.style.display = "none";
+    if (s) {
+      s.classList.remove("visible");
+      s.setAttribute("aria-hidden", "true");
+    }
+    if (st) {
+      st.classList.remove("visible");
+      st.setAttribute("aria-hidden", "true");
+    }
   } catch (e) {}
 }
 
@@ -62,8 +72,14 @@ export function updateEditButton() {
     const editCustomBtn = document.getElementById("editCustom");
     const datasetSelectEl = document.getElementById("datasetSelect");
     if (!editCustomBtn || !datasetSelectEl) return;
-    editCustomBtn.style.visibility =
-      datasetSelectEl.value === "custom" ? "visible" : "hidden";
+    const shouldShow = datasetSelectEl.value === "custom";
+    if (shouldShow) {
+      editCustomBtn.classList.add("visible");
+      editCustomBtn.setAttribute("aria-hidden", "false");
+    } else {
+      editCustomBtn.classList.remove("visible");
+      editCustomBtn.setAttribute("aria-hidden", "true");
+    }
   } catch (e) {}
 }
 
@@ -87,7 +103,7 @@ export function openCustomModal() {
     const _modalKeydownHandler = function (e) {
       if (e.key === "Escape") {
         e.preventDefault();
-        closeCustomModal();
+        closeCustomModal("cancel");
         return;
       }
       if (e.key === "Tab") {
@@ -117,6 +133,8 @@ export function openCustomModal() {
 
 export function closeCustomModal() {
   try {
+    // reason: 'ok' when confirmed, 'cancel' when closed with X/ESC, undefined otherwise
+    const reason = arguments.length ? arguments[0] : undefined;
     const modal = document.getElementById("customModal");
     const mapEl = document.getElementById("map");
     const controlsEl = document.querySelector(".controls");
@@ -131,7 +149,8 @@ export function closeCustomModal() {
     }
     if (typeof _onClose === "function") {
       try {
-        _onClose();
+        // pass reason so callers can decide whether to reset selection
+        _onClose(reason);
       } catch (e) {}
     }
   } catch (e) {}
@@ -167,7 +186,8 @@ export function initCustomModalHandlers({ onOk, onClose } = {}) {
       okTop.addEventListener("click", async () => {
         try {
           const q = textarea ? textarea.value : "";
-          closeCustomModal();
+          // close with 'ok' reason so onClose knows not to reset selection
+          closeCustomModal("ok");
           if (typeof _onOk === "function") {
             await _onOk(q);
           }
@@ -177,8 +197,8 @@ export function initCustomModalHandlers({ onOk, onClose } = {}) {
     if (closeBtn) {
       closeBtn.addEventListener("click", () => {
         try {
-          closeCustomModal();
-          if (typeof _onClose === "function") _onClose();
+          // close with 'cancel' reason to indicate user dismissed the modal
+          closeCustomModal("cancel");
         } catch (e) {}
       });
     }

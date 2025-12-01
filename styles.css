@@ -57,7 +57,7 @@ body,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--text-light);
   transition: background var(--transition-button);
 }
@@ -120,7 +120,7 @@ body,
   border-top-color: var(--spinner-top);
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  display: none;
+  display: inline-block;
   vertical-align: middle;
   position: absolute;
   right: var(--spinner-right);
@@ -128,6 +128,8 @@ body,
   z-index: calc(var(--z-collapse-btn) + 1);
   transition: opacity var(--transition-expand),
     transform var(--transition-expand);
+  opacity: 0;
+  transform: translateY(var(--anim-offset-y)) scale(var(--anim-scale));
 }
 
 .spinnerText {
@@ -136,10 +138,12 @@ body,
   bottom: var(--controls-top);
   font-size: var(--font-size-spinner-text);
   color: var(--text-secondary);
-  display: none;
+  display: inline-block;
   z-index: calc(var(--z-collapse-btn) + 1);
   transition: opacity var(--transition-expand),
     transform var(--transition-expand);
+  opacity: 0;
+  transform: translateY(var(--anim-offset-y)) scale(var(--anim-scale));
 }
 
 .controls.collapsed .spinner,
@@ -148,6 +152,14 @@ body,
   transform: translateY(var(--transform-collapse-y));
   transition: opacity var(--transition-collapse),
     transform var(--transition-collapse);
+}
+
+/* visible class for spinner and spinner text */
+.spinner.visible,
+.spinnerText.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition: opacity var(--transition-expand), transform var(--transition-expand);
 }
 
 @keyframes spin {
@@ -162,7 +174,7 @@ body,
 /* Styles moved from inline attributes in index.html */
 #titleText {
   font-size: var(--font-size-title);
-  font-weight: 700;
+  font-weight: var(--font-weight-strong);
   margin-bottom: var(--gap-medium);
   text-align: center;
   color: var(--text-light);
@@ -210,7 +222,17 @@ body,
   flex: 1;
 }
 #editCustom {
-  visibility: hidden;
+  opacity: 0;
+  transform: translateY(calc(-1 * var(--anim-offset-y))) scale(var(--anim-scale));
+  transition: opacity var(--transition-expand), transform var(--transition-expand);
+  pointer-events: none;
+}
+
+/* visible helper class used by JS to animate appearance */
+#editCustom.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
 }
 .algoSpacer {
   width: var(--btn-min-width);
@@ -223,7 +245,7 @@ body,
 }
 #mstTotal {
   margin-top: var(--gap-small);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--text-secondary);
 }
 .controls .description {
@@ -353,6 +375,6 @@ body,
 
 /* Smooth color transitions for highlight markers */
 .leaflet-interactive.highlight-marker {
-  transition: stroke-opacity 0.3s ease-out, fill-opacity 0.3s ease-out,
-    opacity 0.3s ease-out;
+  transition: stroke-opacity var(--transition-fade), fill-opacity var(--transition-fade),
+    opacity var(--transition-fade);
 }

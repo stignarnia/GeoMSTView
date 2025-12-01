@@ -75,9 +75,15 @@ initCustomModalHandlers({
       console.error(e);
     }
   },
-  onClose: () => {
+  onClose: (reason) => {
     try {
-      document.getElementById("datasetSelect").value = prevDataset;
+      // If the modal was cancelled (closed with X or ESC), reset the dataset
+      // selection to the previous value. If closed with OK, do not reset.
+      if (reason === "cancel") {
+        try {
+          document.getElementById("datasetSelect").value = prevDataset;
+        } catch (e) {}
+      }
       updateEditButton();
     } catch (e) {}
   },
