@@ -257,6 +257,8 @@ body,
   right: var(--spinner-right);
   bottom: var(--controls-top);
   z-index: calc(var(--z-collapse-btn) + 1);
+  transition: opacity var(--transition-expand),
+    transform var(--transition-expand);
 }
 
 .spinnerText {
@@ -267,6 +269,16 @@ body,
   color: var(--text-secondary);
   display: none;
   z-index: calc(var(--z-collapse-btn) + 1);
+  transition: opacity var(--transition-expand),
+    transform var(--transition-expand);
+}
+
+.controls.collapsed .spinner,
+.controls.collapsed .spinnerText {
+  opacity: var(--opacity-collapsed);
+  transform: translateY(var(--transform-collapse-y));
+  transition: opacity var(--transition-collapse),
+    transform var(--transition-collapse);
 }
 
 @keyframes spin {
@@ -472,5 +484,6 @@ body,
 
 /* Smooth color transitions for highlight markers */
 .leaflet-interactive.highlight-marker {
-  transition: stroke-opacity 0.3s ease-out, fill-opacity 0.3s ease-out, opacity 0.3s ease-out;
+  transition: stroke-opacity 0.3s ease-out, fill-opacity 0.3s ease-out,
+    opacity 0.3s ease-out;
 }

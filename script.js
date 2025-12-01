@@ -110,11 +110,11 @@ const map = L.map("map", {
 }).setView(CFG.MAP_DEFAULT_CENTER, CFG.MAP_DEFAULT_ZOOM);
 
 // Create custom panes for proper z-index layering
-map.createPane('mstPane');
-map.getPane('mstPane').style.zIndex = 400; // Below default marker pane (600)
+map.createPane("mstPane");
+map.getPane("mstPane").style.zIndex = 400; // Below default marker pane (600)
 
-map.createPane('highlightPane');
-map.getPane('highlightPane').style.zIndex = 650; // Above markers
+map.createPane("highlightPane");
+map.getPane("highlightPane").style.zIndex = 650; // Above markers
 
 // base tile layer (we will replace URL on theme toggle)
 let baseTileLayer = L.tileLayer(CFG.TILE_URL, {
@@ -154,7 +154,7 @@ const candidateLayerGroup = L.layerGroup().addTo(map);
 const mstLayerGroup = L.layerGroup().addTo(map);
 
 // Set pane for MST lines to be below markers
-mstLayerGroup.options.pane = 'overlayPane';
+mstLayerGroup.options.pane = "overlayPane";
 
 // Worker to offload heavy computation (Prim, distances, GC points)
 const computeWorker = new Worker("worker.js");
@@ -241,7 +241,7 @@ function addWrappedPolyline(latlngs, options, collectArray) {
           polyOpts.renderer = candidateCanvasRenderer;
         else if (options === CFG.MST_STYLE) {
           polyOpts.renderer = mstCanvasRenderer;
-          polyOpts.pane = 'mstPane'; // Ensure MST lines are below markers
+          polyOpts.pane = "mstPane"; // Ensure MST lines are below markers
         }
       } catch (e) {}
       // add to appropriate parent group to enable pooling / bulk clear
@@ -262,7 +262,7 @@ function addWrappedPolyline(latlngs, options, collectArray) {
   if (seg.length) {
     const polyOpts = Object.assign({}, options);
     if (options === CFG.MST_STYLE) {
-      polyOpts.pane = 'mstPane'; // Ensure MST lines are below markers
+      polyOpts.pane = "mstPane"; // Ensure MST lines are below markers
     }
     const parent =
       options === CFG.CANDIDATE_STYLE
@@ -487,7 +487,7 @@ async function fetchOverpass(query, cacheKey) {
     let statusCode = err.status || "Network";
     let errorMessage = "";
     let explanation = "";
-    
+
     // Helper function to extract error message from HTML response
     function extractErrorMessage(rawBody) {
       if (!rawBody) return "";
@@ -501,7 +501,7 @@ async function fetchOverpass(query, cacheKey) {
         return firstLine.length < 200 ? firstLine : firstLine.slice(0, 200);
       }
     }
-    
+
     // Explanation for all HTTP status codes and extract error messages
     switch (statusCode) {
       case 400:
@@ -534,7 +534,10 @@ async function fetchOverpass(query, cacheKey) {
         break;
       case "Network":
         explanation = "";
-        errorMessage = "Cannot connect to " + endpoint + ". The URL may be incorrect or the server may be down.";
+        errorMessage =
+          "Cannot connect to " +
+          endpoint +
+          ". The URL may be incorrect or the server may be down.";
         break;
       default:
         if (statusCode >= 500) {
@@ -542,15 +545,17 @@ async function fetchOverpass(query, cacheKey) {
         } else if (statusCode >= 400) {
           explanation = " (Client Error)";
         }
-        errorMessage = extractErrorMessage(err.rawBody) || err.message || "Unknown error";
+        errorMessage =
+          extractErrorMessage(err.rawBody) || err.message || "Unknown error";
     }
-    
+
     if (!errorMessage) errorMessage = "Unknown error";
-    
-    const finalMessage = statusCode === "Network" 
-      ? errorMessage 
-      : "HTTP " + statusCode + explanation + ": " + errorMessage;
-    
+
+    const finalMessage =
+      statusCode === "Network"
+        ? errorMessage
+        : "HTTP " + statusCode + explanation + ": " + errorMessage;
+
     throw new Error(finalMessage);
   } finally {
     hideSpinner();
@@ -673,31 +678,31 @@ let currentEdgeAnim = null;
 function lerpColor(color1, color2, t) {
   // Parse hex colors
   const parseColor = (c) => {
-    if (c.startsWith('#')) {
+    if (c.startsWith("#")) {
       const hex = c.slice(1);
       return {
         r: parseInt(hex.slice(0, 2), 16),
         g: parseInt(hex.slice(2, 4), 16),
-        b: parseInt(hex.slice(4, 6), 16)
+        b: parseInt(hex.slice(4, 6), 16),
       };
     }
     // Handle named colors
     const colors = {
-      'red': {r: 255, g: 0, b: 0},
-      'blue': {r: 0, g: 0, b: 255},
-      'cyan': {r: 0, g: 255, b: 255},
-      'yellow': {r: 255, g: 255, b: 0}
+      red: { r: 255, g: 0, b: 0 },
+      blue: { r: 0, g: 0, b: 255 },
+      cyan: { r: 0, g: 255, b: 255 },
+      yellow: { r: 255, g: 255, b: 0 },
     };
-    return colors[c] || {r: 255, g: 255, b: 255};
+    return colors[c] || { r: 255, g: 255, b: 255 };
   };
-  
+
   const c1 = parseColor(color1);
   const c2 = parseColor(color2);
-  
+
   const r = Math.round(c1.r + (c2.r - c1.r) * t);
   const g = Math.round(c1.g + (c2.g - c1.g) * t);
   const b = Math.round(c1.b + (c2.b - c1.b) * t);
-  
+
   return `rgb(${r}, ${g}, ${b})`;
 }
 
@@ -729,7 +734,7 @@ function animateStep() {
     });
     gcCacheGlobal.set(key, latlngs);
   }
-  
+
   // Add highlights with initial transparent/invisible state
   const h1 = L.circleMarker([currentCities[e.u].lat, currentCities[e.u].lon], {
     radius: CFG.HIGHLIGHT_RADIUS,
@@ -738,7 +743,7 @@ function animateStep() {
     fillOpacity: 0,
     opacity: 0,
     className: "highlight-marker",
-    pane: "highlightPane"
+    pane: "highlightPane",
   }).addTo(map);
   const h2 = L.circleMarker([currentCities[e.v].lat, currentCities[e.v].lon], {
     radius: CFG.HIGHLIGHT_RADIUS,
@@ -747,10 +752,10 @@ function animateStep() {
     fillOpacity: 0,
     opacity: 0,
     className: "highlight-marker",
-    pane: "highlightPane"
+    pane: "highlightPane",
   }).addTo(map);
   highlightMarkers.push(h1, h2);
-  
+
   // Fade in the highlights smoothly after a brief delay
   setTimeout(() => {
     try {
@@ -758,47 +763,50 @@ function animateStep() {
       h2.setStyle({ fillOpacity: CFG.HIGHLIGHT_FILL_OPACITY, opacity: 1 });
     } catch (e) {}
   }, 50);
-  
+
   // Start animating the edge growth
   currentEdgeAnim = {
     latlngs: latlngs,
     progress: 0,
     polylineParts: [],
-    startTime: performance.now()
+    startTime: performance.now(),
   };
-  
+
   animIndex++;
 }
 
 function updateEdgeAnimation(timestamp) {
   if (!currentEdgeAnim) return true; // Edge animation complete
-  
+
   const elapsed = timestamp - currentEdgeAnim.startTime;
   const duration = Math.max(100, animationDelay * 0.8); // Edge grows in 80% of step delay
   currentEdgeAnim.progress = Math.min(1, elapsed / duration);
-  
+
   // Remove old polyline parts
-  currentEdgeAnim.polylineParts.forEach(p => {
+  currentEdgeAnim.polylineParts.forEach((p) => {
     try {
       if (p && p.remove) p.remove();
     } catch (e) {}
   });
   currentEdgeAnim.polylineParts = [];
-  
+
   // Calculate how many points to show based on progress
   const totalPoints = currentEdgeAnim.latlngs.length;
-  const pointsToShow = Math.max(2, Math.floor(totalPoints * currentEdgeAnim.progress));
+  const pointsToShow = Math.max(
+    2,
+    Math.floor(totalPoints * currentEdgeAnim.progress)
+  );
   const partialLatlngs = currentEdgeAnim.latlngs.slice(0, pointsToShow);
-  
+
   // Add the growing polyline
   const parts = addWrappedPolyline(partialLatlngs, CFG.MST_STYLE, mstLines);
   currentEdgeAnim.polylineParts = parts;
-  
+
   if (currentEdgeAnim.progress >= 1) {
     currentEdgeAnim = null;
     return true; // Animation complete
   }
-  
+
   return false; // Still animating
 }
 
@@ -818,7 +826,7 @@ function startAnimation() {
       stopAnimation();
       return;
     }
-    
+
     // If we're animating an edge, update it
     if (currentEdgeAnim) {
       const edgeComplete = updateEdgeAnimation(ts);
@@ -828,7 +836,7 @@ function startAnimation() {
         return;
       }
     }
-    
+
     // Check if enough time has passed to start next edge
     if (ts - animateLastStepTs >= animationDelay) {
       try {
