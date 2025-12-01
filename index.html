@@ -4,12 +4,28 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>MST Visualization — OpenStreetMap data</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Interactive Minimum Spanning Tree visualization over OpenStreetMap data using Prim and Kruskal algorithms" />
+    <meta name="theme-color" content="#04101b" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="GeoMSTView" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json" />
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="apple-touch-icon" href="favicon.png" />
+    
+    <!-- Stylesheets -->
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     />
     <link rel="stylesheet" href="styles.css" />
-    <link rel="icon" type="image/png" href="favicon.png" />
   </head>
   <body>
     <div id="map"></div>
@@ -164,5 +180,34 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script type="module" src="app/main.js"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      // Register service worker for PWA functionality
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('[PWA] Service Worker registered successfully:', registration.scope);
+              
+              // Check for updates periodically
+              registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                console.log('[PWA] New service worker installing...');
+                
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    console.log('[PWA] New service worker installed, update available');
+                    // Could show a notification to the user here
+                  }
+                });
+              });
+            })
+            .catch((error) => {
+              console.error('[PWA] Service Worker registration failed:', error);
+            });
+        });
+      }
+    </script>
   </body>
 </html>
