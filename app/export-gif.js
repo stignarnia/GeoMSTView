@@ -68,21 +68,11 @@ function replayAnimationStep(edgeIndex) {
   }
   
   const e = S.currentMST[edgeIndex]
-  const key = gcKey
-    ? gcKey(e.u, e.v)
-    : Math.min(e.u, e.v) + "|" + Math.max(e.u, e.v)
+  const key = gcKey(e.u, e.v)
   
   let latlngs = S.gcCacheGlobal.get(key)
   if (!latlngs) {
-    latlngs = (
-      greatCirclePoints ||
-      function (a, b) {
-        return [
-          [a.lat, a.lon],
-          [b.lat, b.lon],
-        ]
-      }
-    )(S.currentCities[e.u], S.currentCities[e.v], {
+    latlngs = greatCirclePoints(S.currentCities[e.u], S.currentCities[e.v], {
       GC_MIN_SEGMENTS: S.CFG.GC_MIN_SEGMENTS,
       GC_MAX_SEGMENTS: S.CFG.GC_MAX_SEGMENTS,
       GC_SEGMENT_FACTOR: S.CFG.GC_SEGMENT_FACTOR,
@@ -227,8 +217,7 @@ export async function exportAnimationAsGif() {
     }
 
     // Capture frames for each MST edge
-    const framesPerEdge = 2 // Initial and final state for each edge
-    const totalFrames = S.currentMST.length * framesPerEdge
+    const totalFrames = S.currentMST.length
     let frameCount = 0
 
     for (let i = 0; i < S.currentMST.length; i++) {
