@@ -7,6 +7,17 @@ let exportProgressBar = null
 let exportDetails = null
 let closeExportModalBtn = null
 
+// Create inline worker script to avoid CORS issues
+function createWorkerBlob() {
+  // Fetch the worker script and create a blob URL
+  return fetch('https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js')
+    .then(response => response.text())
+    .then(workerCode => {
+      const blob = new Blob([workerCode], { type: 'application/javascript' })
+      return URL.createObjectURL(blob)
+    })
+}
+
 function showExportModal() {
   if (!exportModal) {
     exportModal = document.getElementById("exportModal")
@@ -182,11 +193,40 @@ export async function exportAnimationAsGif() {
     })
     tempPolylines.length = 0
   }
+  
+  // Helper function to disable map interactions
+  const disableMapInteractions = () => {
+    try {
+      S.map.dragging.disable()
+      S.map.touchZoom.disable()
+      S.map.doubleClickZoom.disable()
+      S.map.scrollWheelZoom.disable()
+      S.map.boxZoom.disable()
+      S.map.keyboard.disable()
+      if (S.map.tap) S.map.tap.disable()
+    } catch (e) {}
+  }
+  
+  // Helper function to enable map interactions
+  const enableMapInteractions = () => {
+    try {
+      S.map.dragging.enable()
+      S.map.touchZoom.enable()
+      S.map.doubleClickZoom.enable()
+      S.map.scrollWheelZoom.enable()
+      S.map.boxZoom.enable()
+      S.map.keyboard.enable()
+      if (S.map.tap) S.map.tap.enable()
+    } catch (e) {}
+  }
 
   try {
     // Save current map state
     const currentCenter = S.map.getCenter()
     const currentZoom = S.map.getZoom()
+    
+    // Disable map interactions during export
+    disableMapInteractions()
     
     // Clear existing MST visualization
     try {
@@ -204,12 +244,21 @@ export async function exportAnimationAsGif() {
 
     updateExportProgress(5, "Capturing frames...", "Frame 0 of " + S.currentMST.length)
 
+    // Create worker blob URL to avoid CORS issues
+    let workerUrl
+    try {
+      workerUrl = await createWorkerBlob()
+    } catch (workerError) {
+      console.error("Failed to load worker script:", workerError)
+      throw new Error("Failed to load GIF encoder worker. Please check your internet connection.")
+    }
+
     // Initialize GIF encoder
     const gifConfig = S.CFG.GIF_EXPORT || {}
     const gif = new GIF({
       workers: gifConfig.WORKERS || 2,
       quality: gifConfig.QUALITY || 10,
-      workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js',
+      workerScript: workerUrl,
       width: S.map.getContainer().offsetWidth,
       height: S.map.getContainer().offsetHeight
     })
@@ -221,7 +270,9 @@ export async function exportAnimationAsGif() {
     } catch (error) {
       if (error.message === "CORS_ERROR") {
         cleanupTempLayers()
+        enableMapInteractions()
         document.body.classList.remove("exporting-gif")
+        if (workerUrl) URL.revokeObjectURL(workerUrl)
         hideExportModal()
         alert(
           "GIF export failed due to CORS restrictions from the tile server.\n\n" +
@@ -290,6 +341,12 @@ export async function exportAnimationAsGif() {
       // Cleanup temporary layers
       cleanupTempLayers()
       
+      // Cleanup worker URL
+      if (workerUrl) URL.revokeObjectURL(workerUrl)
+      
+      // Re-enable map interactions
+      enableMapInteractions()
+      
       // Restore UI
       document.body.classList.remove("exporting-gif")
       
@@ -303,6 +360,7 @@ export async function exportAnimationAsGif() {
   } catch (error) {
     console.error("Export error:", error)
     cleanupTempLayers()
+    enableMapInteractions()
     document.body.classList.remove("exporting-gif")
     hideExportModal()
     alert("Failed to export GIF: " + error.message)
