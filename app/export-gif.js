@@ -162,15 +162,33 @@ export async function exportAnimationAsGif() {
   showExportModal()
   updateExportProgress(0, "Preparing export...", "")
 
+  // Track temporary layers for cleanup
+  const tempHighlights = []
+  const tempPolylines = []
+  
+  // Helper function to clean up temporary layers
+  const cleanupTempLayers = () => {
+    tempHighlights.forEach((h) => {
+      try {
+        S.map.removeLayer(h)
+      } catch (e) {}
+    })
+    tempHighlights.length = 0
+    
+    tempPolylines.forEach((p) => {
+      try {
+        S.map.removeLayer(p)
+      } catch (e) {}
+    })
+    tempPolylines.length = 0
+  }
+
   try {
     // Save current map state
     const currentCenter = S.map.getCenter()
     const currentZoom = S.map.getZoom()
     
     // Clear existing MST visualization
-    const tempHighlights = []
-    const tempPolylines = []
-    
     try {
       S.mstLayerGroup.clearLayers()
     } catch (e) {}
@@ -202,6 +220,7 @@ export async function exportAnimationAsGif() {
       gif.addFrame(initialCanvas, { delay: gifConfig.INITIAL_FRAME_DELAY_MS || 500 })
     } catch (error) {
       if (error.message === "CORS_ERROR") {
+        cleanupTempLayers()
         document.body.classList.remove("exporting-gif")
         hideExportModal()
         alert(
@@ -268,7 +287,10 @@ export async function exportAnimationAsGif() {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
 
-      // Cleanup
+      // Cleanup temporary layers
+      cleanupTempLayers()
+      
+      // Restore UI
       document.body.classList.remove("exporting-gif")
       
       setTimeout(() => {
@@ -280,6 +302,7 @@ export async function exportAnimationAsGif() {
 
   } catch (error) {
     console.error("Export error:", error)
+    cleanupTempLayers()
     document.body.classList.remove("exporting-gif")
     hideExportModal()
     alert("Failed to export GIF: " + error.message)
