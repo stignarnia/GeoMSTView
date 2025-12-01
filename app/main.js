@@ -286,3 +286,48 @@ try {
 try {
   document.title = S.CFG.TITLE_TEXT;
 } catch (e) {}
+
+// Wire animation speed slider (read values only from settings)
+try {
+  const speedCfg = S && S.CFG && S.CFG.SPEED_RANGE;
+  const speedRange = document.getElementById("speedRange");
+  const speedLabel = document.getElementById("speedLabel");
+  if (speedCfg && speedRange) {
+    speedRange.min = speedCfg.min;
+    speedRange.max = speedCfg.max;
+    if (typeof speedCfg.step !== "undefined") speedRange.step = speedCfg.step;
+
+    // derive slider position from current S.animationDelay (source of truth)
+    try {
+      const min = Number(speedCfg.min);
+      const max = Number(speedCfg.max);
+      const currentDelay = Number(S.animationDelay);
+      if (!Number.isNaN(currentDelay)) {
+        const initial = Math.round(min + max - currentDelay);
+        speedRange.value = initial;
+      } else if (typeof speedCfg.default !== "undefined") {
+        speedRange.value = speedCfg.default;
+      }
+    } catch (e) {}
+
+    const applyValue = (val) => {
+      try {
+        const delay = Number(speedCfg.min) + Number(speedCfg.max) - Number(val);
+        S.animationDelay = delay;
+        if (speedLabel) speedLabel.textContent = String(delay) + " ms";
+      } catch (e) {
+        if (speedLabel) speedLabel.textContent = "";
+      }
+    };
+
+    // initialize from state
+    try {
+      if (typeof speedRange.value !== "undefined") applyValue(speedRange.value);
+    } catch (e) {}
+
+    speedRange.addEventListener("input", (e) => {
+      const v = e.target.value;
+      applyValue(v);
+    });
+  }
+} catch (e) {}
