@@ -242,17 +242,19 @@ body,
   display: none;
   vertical-align: middle;
   position: absolute;
-  right: var(--controls-top);
+  right: 50px;
   bottom: var(--controls-top);
+  z-index: calc(var(--z-collapse-btn) + 1);
 }
 
 .spinnerText {
   position: absolute;
-  right: 36px;
+  right: 76px;
   bottom: var(--controls-top);
   font-size: var(--font-size-spinner-text);
   color: var(--text-secondary);
   display: none;
+  z-index: calc(var(--z-collapse-btn) + 1);
 }
 
 @keyframes spin {
