@@ -10,6 +10,30 @@ Simple interactive demo that computes and visualizes a Minimum Spanning Tree (MS
 4. Choose a dataset from the `Dataset` control: `capitals` (built-in sample), `preset` (a larger preset Overpass query), or `custom` to paste/run your own Overpass QL query.
 5. Press the ▶ `Start` button to animate MST edges being added. Use `Reset` to clear the animation or `🗑` to invalidate cached Overpass results for the current query.
 6. Use the `Animation speed` slider to slow down or speed up the edge animation.
+7. Press the 📹 `Export GIF` button to export the animation as a downloadable GIF file.
+
+## GIF Export
+
+The GIF export feature allows you to download the MST animation as an animated GIF file:
+
+- Click the 📹 button in the control panel to start the export process
+- The UI will be hidden during frame capture to produce a clean output
+- A progress bar will show the encoding status
+- The GIF will automatically download when complete
+- Export uses the current map view (center and zoom level)
+
+**Note about CORS:** Some tile servers may block cross-origin canvas access, which can prevent GIF export. If you encounter CORS errors:
+- Try using the light theme (which uses OpenStreetMap tiles)
+- The default dark theme uses Carto tiles which may have CORS restrictions
+- For production use, consider implementing a server-side export solution
+
+Export settings can be configured in `settings.json` under the `GIF_EXPORT` key:
+- `WORKERS`: Number of worker threads for GIF encoding (default: 2)
+- `QUALITY`: GIF quality (1-30, lower is better, default: 10)
+- `INITIAL_FRAME_DELAY_MS`: Delay for the first frame (default: 500ms)
+- `EDGE_FRAME_DELAY_MS`: Delay for each edge frame (default: 200ms)
+- `FINAL_FRAME_DELAY_MS`: Delay for the final frame (default: 1000ms)
+- `RENDER_DELAY_MS`: Delay between rendering steps (default: 50ms)
 
 ## Custom Overpass queries
 
@@ -72,5 +96,6 @@ python -m http.server 8000
   - `app/state.js` — shared runtime state object.
   - `app/api.js` — Overpass fetch, caching and query helpers.
   - `app/ui.js` — small UI helpers (spinner etc.).
+  - `app/export-gif.js` — GIF export functionality (frame capture and encoding).
 - `LICENSE` — project license.
 - `README.md` — this file.

@@ -34,6 +34,14 @@
   "HIGHLIGHT_ANIM_DURATION": 300,
   "CANDIDATE_STYLE": { "color": "#888", "weight": 1, "opacity": 0.2 },
   "MST_STYLE": { "color": "red", "weight": 3, "opacity": 1 },
+  "GIF_EXPORT": {
+    "WORKERS": 2,
+    "QUALITY": 10,
+    "INITIAL_FRAME_DELAY_MS": 500,
+    "EDGE_FRAME_DELAY_MS": 200,
+    "FINAL_FRAME_DELAY_MS": 1000,
+    "RENDER_DELAY_MS": 50
+  },
   "DEFAULT_CITIES_QUERY": "[out:json][timeout:60];\n            area[\"ISO3166-1\"=\"IT\"]->.a;\n            (\n              node[\"place\"~\"city|town\"][\"population\"~\"^([5-9][0-9]{4}|[1-9][0-9]{5,})$\"](area.a);\n              way[\"place\"~\"city|town\"][\"population\"~\"^([5-9][0-9]{4}|[1-9][0-9]{5,})$\"](area.a);\n              relation[\"place\"~\"city|town\"][\"population\"~\"^([5-9][0-9]{4}|[1-9][0-9]{5,})$\"](area.a);\n            );\n            out center tags;",
   "CAPITALS": [
     { "name": "Aosta", "region": "Aosta Valley", "lat": 45.737, "lon": 7.315 },

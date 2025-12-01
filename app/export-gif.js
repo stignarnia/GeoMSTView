@@ -197,9 +197,10 @@ export async function exportAnimationAsGif() {
     updateExportProgress(5, "Capturing frames...", "Frame 0 of " + S.currentMST.length)
 
     // Initialize GIF encoder
+    const gifConfig = S.CFG.GIF_EXPORT || {}
     const gif = new GIF({
-      workers: 2,
-      quality: 10,
+      workers: gifConfig.WORKERS || 2,
+      quality: gifConfig.QUALITY || 10,
       workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js',
       width: S.map.getContainer().offsetWidth,
       height: S.map.getContainer().offsetHeight
@@ -208,7 +209,7 @@ export async function exportAnimationAsGif() {
     // Capture initial frame (before animation starts)
     try {
       const initialCanvas = await captureMapFrame()
-      gif.addFrame(initialCanvas, { delay: 500 })
+      gif.addFrame(initialCanvas, { delay: gifConfig.INITIAL_FRAME_DELAY_MS || 500 })
     } catch (error) {
       if (error.message === "CORS_ERROR") {
         document.body.classList.remove("exporting-gif")
@@ -238,11 +239,11 @@ export async function exportAnimationAsGif() {
       }
 
       // Small delay for rendering
-      await new Promise(resolve => setTimeout(resolve, 50))
+      await new Promise(resolve => setTimeout(resolve, gifConfig.RENDER_DELAY_MS || 50))
 
       // Capture frame
       const canvas = await captureMapFrame()
-      gif.addFrame(canvas, { delay: 200 })
+      gif.addFrame(canvas, { delay: gifConfig.EDGE_FRAME_DELAY_MS || 200 })
       frameCount++
 
       const progress = 5 + (frameCount / totalFrames) * 60
@@ -255,7 +256,7 @@ export async function exportAnimationAsGif() {
 
     // Capture final frame (hold the complete MST)
     const finalCanvas = await captureMapFrame()
-    gif.addFrame(finalCanvas, { delay: 1000 })
+    gif.addFrame(finalCanvas, { delay: gifConfig.FINAL_FRAME_DELAY_MS || 1000 })
 
     updateExportProgress(70, "Encoding GIF...", "This may take a moment")
 
