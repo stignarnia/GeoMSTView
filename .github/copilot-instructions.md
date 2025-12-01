@@ -34,7 +34,8 @@ GeoMSTView is an interactive web application that visualizes Minimum Spanning Tr
     ├── worker-comm.js # Worker creation and messaging
     ├── state.js       # Shared runtime state
     ├── api.js         # Overpass API fetch and caching
-    └── ui.js          # UI helpers (spinner, modals)
+    ├── ui.js          # UI helpers (spinner, modals)
+    └── pwa.js         # Service worker registration
 ```
 
 ## Development Workflow
@@ -152,8 +153,8 @@ Heavy computation runs in a Web Worker to keep UI responsive:
 ### Modifying MST Algorithms
 
 Edit `app/worker.js`:
-- Prim's algorithm: lines ~65-95
-- Kruskal's algorithm: lines ~28-64
+- Kruskal's algorithm: lines ~28-61
+- Prim's algorithm: lines ~63-89
 - Both use the pre-computed distance matrix
 
 ### Changing Map Appearance
