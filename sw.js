@@ -91,7 +91,7 @@ self.addEventListener('fetch', (event) => {
           event.waitUntil(
             fetch(request)
               .then((networkResponse) => {
-                if (networkResponse && networkResponse.status === 200) {
+                if (networkResponse && networkResponse.ok) {
                   caches.open(CACHE_NAME)
                     .then((cache) => {
                       cache.put(request, networkResponse.clone());
@@ -109,7 +109,7 @@ self.addEventListener('fetch', (event) => {
         return fetch(request)
           .then((networkResponse) => {
             // Only cache successful responses
-            if (!networkResponse || networkResponse.status !== 200) {
+            if (!networkResponse || !networkResponse.ok) {
               return networkResponse;
             }
 
