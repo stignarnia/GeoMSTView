@@ -61,6 +61,14 @@
           ▶
         </button>
         <button
+          id="themeToggle"
+          class="modalBtn"
+          title="Toggle map theme"
+          aria-label="Toggle map theme"
+        >
+          <span class="themeIcon">☀</span>
+        </button>
+        <button
           id="reset"
           class="modalBtn btnRevert"
           title="Reset"
@@ -87,7 +95,14 @@
       </p>
     </div>
     <!-- Custom query modal -->
-    <div id="customModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="customModalTitle" tabindex="-1">
+    <div
+      id="customModal"
+      role="dialog"
+      aria-modal="true"
+      aria-hidden="true"
+      aria-labelledby="customModalTitle"
+      tabindex="-1"
+    >
       <div class="modalContent">
         <div class="modalHeader">
           <strong id="customModalTitle">Custom Overpass QL</strong>

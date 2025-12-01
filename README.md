@@ -3,10 +3,11 @@
 Simple interactive demo that computes and visualizes a Minimum Spanning Tree (MST) over a set of cities sourced from OpenStreetMap. The map is rendered with Leaflet and heavy computation (distance matrix, Prim, great-circle points) runs in a Web Worker to keep the UI responsive.
 
 ## Quick start
-1. Open `index.html` in a modern browser. For best results serve the folder with a local static server (see notes below).
-2. Choose a dataset from the `Dataset` control: `capitals` (built-in sample), `preset` (a larger preset Overpass query), or `custom` to paste/run your own Overpass QL query.
-3. Press the ▶ `Start` button to animate MST edges being added. Use `Reset` to clear the animation or `🗑` to invalidate cached Overpass results for the current query.
-4. Use the `Animation speed` slider to slow down or speed up the edge animation.
+1. View the hosted demo at: https://geomstview.pages.dev.
+2. To run locally you must use a local static server (see below) — double-clicking `index.html` will not work.
+3. Choose a dataset from the `Dataset` control: `capitals` (built-in sample), `preset` (a larger preset Overpass query), or `custom` to paste/run your own Overpass QL query.
+4. Press the ▶ `Start` button to animate MST edges being added. Use `Reset` to clear the animation or `🗑` to invalidate cached Overpass results for the current query.
+5. Use the `Animation speed` slider to slow down or speed up the edge animation.
 
 ## Settings
 If you want to change default behavior (tile server, animation defaults, k-nearest limits, etc.) edit the `CFG` object at the top of `script.js`.
@@ -25,8 +26,8 @@ After editing `script.js`, reload the page.
 - The demo builds a full pairwise distance matrix and runs Prim's algorithm; it's fast for small and medium datasets (tens–low hundreds of cities) but will slow down for thousands of cities.
 - If a query returns a very large number of results the page may become slow or the Overpass server may time out — choose smaller areas or refine queries.
 
-## Serving locally (recommended)
-Opening the file directly in a browser works, but using a local server avoids worker/credential limitations in some browsers. A quick way:
+## Serving locally (required if not using the hosted demo)
+As an example, a quick way to make a local static server:
 
 ```bash
 python -m http.server 8000

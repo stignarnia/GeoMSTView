@@ -1,5 +1,5 @@
 // Worker: compute MST and great-circle latlngs (k-nearest up to kMax)
-self.importScripts && importScripts('shared.js');
+self.importScripts && importScripts("shared.js");
 self.addEventListener("message", async (ev) => {
   const msg = ev.data || {};
   if (msg.type === "compute") {
@@ -11,9 +11,20 @@ self.addEventListener("message", async (ev) => {
     const GC_SEGMENT_FACTOR = cfg.GC_SEGMENT_FACTOR || 0.2;
     const R = cfg.DISTANCE_RADIUS_KM || 6371;
 
-    const shared = (self.__MST_shared || {});
-    const haversine = (shared.haversine || function(a,b){ return 0; });
-    const greatCirclePoints = (shared.greatCirclePoints || function(a,b){ return [[a.lat,a.lon],[b.lat,b.lon]]; });
+    const shared = self.__MST_shared || {};
+    const haversine =
+      shared.haversine ||
+      function (a, b) {
+        return 0;
+      };
+    const greatCirclePoints =
+      shared.greatCirclePoints ||
+      function (a, b) {
+        return [
+          [a.lat, a.lon],
+          [b.lat, b.lon],
+        ];
+      };
 
     // compute pairwise distances (upper triangular)
     const n = cities.length;
@@ -72,9 +83,17 @@ self.addEventListener("message", async (ev) => {
         const j = item[1];
         const a = Math.min(i, j),
           b = Math.max(i, j);
-        const key = (shared && shared.gcKey) ? shared.gcKey(a, b) : (a + "|" + b);
+        const key = shared && shared.gcKey ? shared.gcKey(a, b) : a + "|" + b;
         if (!candidatePairs.has(key)) {
-          candidatePairs.set(key, greatCirclePoints(cities[a], cities[b], {GC_MIN_SEGMENTS: GC_MIN_SEGMENTS, GC_MAX_SEGMENTS: GC_MAX_SEGMENTS, GC_SEGMENT_FACTOR: GC_SEGMENT_FACTOR, DISTANCE_RADIUS_KM: R}));
+          candidatePairs.set(
+            key,
+            greatCirclePoints(cities[a], cities[b], {
+              GC_MIN_SEGMENTS: GC_MIN_SEGMENTS,
+              GC_MAX_SEGMENTS: GC_MAX_SEGMENTS,
+              GC_SEGMENT_FACTOR: GC_SEGMENT_FACTOR,
+              DISTANCE_RADIUS_KM: R,
+            })
+          );
         }
       });
     }
@@ -84,9 +103,17 @@ self.addEventListener("message", async (ev) => {
     mst.forEach((e) => {
       const a = Math.min(e.u, e.v),
         b = Math.max(e.u, e.v);
-        const key = (shared && shared.gcKey) ? shared.gcKey(a, b) : (a + "|" + b);
+      const key = shared && shared.gcKey ? shared.gcKey(a, b) : a + "|" + b;
       if (!candidatePairs.has(key)) {
-        mstGC.set(key, greatCirclePoints(cities[a], cities[b], {GC_MIN_SEGMENTS: GC_MIN_SEGMENTS, GC_MAX_SEGMENTS: GC_MAX_SEGMENTS, GC_SEGMENT_FACTOR: GC_SEGMENT_FACTOR, DISTANCE_RADIUS_KM: R}));
+        mstGC.set(
+          key,
+          greatCirclePoints(cities[a], cities[b], {
+            GC_MIN_SEGMENTS: GC_MIN_SEGMENTS,
+            GC_MAX_SEGMENTS: GC_MAX_SEGMENTS,
+            GC_SEGMENT_FACTOR: GC_SEGMENT_FACTOR,
+            DISTANCE_RADIUS_KM: R,
+          })
+        );
       } else {
         mstGC.set(key, candidatePairs.get(key));
       }

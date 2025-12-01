@@ -8,6 +8,11 @@ const CFG = {
   TILE_URL: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
   TILE_MAX_ZOOM: 19,
   TILE_ATTRIBUTION: "© OpenStreetMap contributors, © CARTO",
+  // Light-mode tiles (standard OpenStreetMap)
+  LIGHT_TILE_URL: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  LIGHT_TILE_ATTRIBUTION: "© OpenStreetMap contributors",
+  // default theme: 'dark' or 'light'
+  DEFAULT_THEME: "dark",
   // TITLE_TEXT: document title and UI title text
   TITLE_TEXT:
     "Prim MST visualization — OpenStreetMap geographic data (Haversine)",
@@ -101,10 +106,35 @@ CFG.ANIMATION_DELAY_DEFAULT =
   CFG.SPEED_RANGE.min + CFG.SPEED_RANGE.max - CFG.SPEED_RANGE.default;
 
 const map = L.map("map").setView(CFG.MAP_DEFAULT_CENTER, CFG.MAP_DEFAULT_ZOOM);
-L.tileLayer(CFG.TILE_URL, {
+// base tile layer (we will replace URL on theme toggle)
+let baseTileLayer = L.tileLayer(CFG.TILE_URL, {
   maxZoom: CFG.TILE_MAX_ZOOM,
   attribution: CFG.TILE_ATTRIBUTION,
 }).addTo(map);
+// current theme
+let currentTheme = CFG.DEFAULT_THEME || "dark";
+
+function applyTheme(theme) {
+  try {
+    const useLight = theme === "light";
+    const url =
+      useLight && CFG.LIGHT_TILE_URL ? CFG.LIGHT_TILE_URL : CFG.TILE_URL;
+    const attr =
+      useLight && CFG.LIGHT_TILE_ATTRIBUTION
+        ? CFG.LIGHT_TILE_ATTRIBUTION
+        : CFG.TILE_ATTRIBUTION;
+    // remove and recreate base layer to ensure attribution updates cleanly
+    try {
+      map.removeLayer(baseTileLayer);
+    } catch (e) {}
+    baseTileLayer = L.tileLayer(url, {
+      maxZoom: CFG.TILE_MAX_ZOOM,
+      attribution: attr,
+    }).addTo(map);
+  } catch (e) {
+    // non-fatal
+  }
+}
 
 // Canvas renderers for faster drawing of many polylines
 const candidateCanvasRenderer = L.canvas({ padding: 0.5 });
@@ -148,7 +178,7 @@ computeWorker.addEventListener("message", (ev) => {
 });
 
 // Use shared implementations to avoid duplication with worker
-const shared = (self.__MST_shared || {});
+const shared = self.__MST_shared || {};
 const haversineShared = shared.haversine;
 const greatCirclePointsShared = shared.greatCirclePoints;
 
@@ -199,7 +229,12 @@ function addWrappedPolyline(latlngs, options, collectArray) {
           polyOpts.renderer = mstCanvasRenderer;
       } catch (e) {}
       // add to appropriate parent group to enable pooling / bulk clear
-      const parent = options === CFG.CANDIDATE_STYLE ? candidateLayerGroup : options === CFG.MST_STYLE ? mstLayerGroup : map;
+      const parent =
+        options === CFG.CANDIDATE_STYLE
+          ? candidateLayerGroup
+          : options === CFG.MST_STYLE
+          ? mstLayerGroup
+          : map;
       const p = L.polyline(seg, polyOpts).addTo(parent);
       parts.push(p);
       if (Array.isArray(collectArray)) collectArray.push(p);
@@ -209,7 +244,12 @@ function addWrappedPolyline(latlngs, options, collectArray) {
     }
   }
   if (seg.length) {
-    const parent = options === CFG.CANDIDATE_STYLE ? candidateLayerGroup : options === CFG.MST_STYLE ? mstLayerGroup : map;
+    const parent =
+      options === CFG.CANDIDATE_STYLE
+        ? candidateLayerGroup
+        : options === CFG.MST_STYLE
+        ? mstLayerGroup
+        : map;
     const p = L.polyline(seg, options).addTo(parent);
     parts.push(p);
     if (Array.isArray(collectArray)) collectArray.push(p);
@@ -315,7 +355,9 @@ function redrawCandidateLines() {
   // use shared key helper when available to avoid mismatch with worker
   const gcKey = (a, b) => {
     try {
-      return (shared && shared.gcKey) ? shared.gcKey(a, b) : (Math.min(a, b) + "|" + Math.max(a, b));
+      return shared && shared.gcKey
+        ? shared.gcKey(a, b)
+        : Math.min(a, b) + "|" + Math.max(a, b);
     } catch (e) {
       return Math.min(a, b) + "|" + Math.max(a, b);
     }
@@ -325,12 +367,18 @@ function redrawCandidateLines() {
   for (let i = 0; i < n; i++) {
     const top = neighbors[i].slice(0, kNearest);
     top.forEach((j) => {
-    const key = gcKey(i, j);
+      const key = gcKey(i, j);
       let latlngs = gcCacheGlobal.get(key);
       if (!latlngs) {
-        latlngs = (greatCirclePointsShared || function (a, b) {
-          return [[a.lat, a.lon], [b.lat, b.lon]];
-        })(currentCities[i], currentCities[j], {
+        latlngs = (
+          greatCirclePointsShared ||
+          function (a, b) {
+            return [
+              [a.lat, a.lon],
+              [b.lat, b.lon],
+            ];
+          }
+        )(currentCities[i], currentCities[j], {
           GC_MIN_SEGMENTS: CFG.GC_MIN_SEGMENTS,
           GC_MAX_SEGMENTS: CFG.GC_MAX_SEGMENTS,
           GC_SEGMENT_FACTOR: CFG.GC_SEGMENT_FACTOR,
@@ -338,7 +386,11 @@ function redrawCandidateLines() {
         });
         gcCacheGlobal.set(key, latlngs);
       }
-      const parts = addWrappedPolyline(latlngs, CFG.CANDIDATE_STYLE, candidateLines);
+      const parts = addWrappedPolyline(
+        latlngs,
+        CFG.CANDIDATE_STYLE,
+        candidateLines
+      );
       // accumulate returned parts into candidateLines flat array
       if (Array.isArray(parts) && parts.length) {
         // parts have already been pushed into candidateLines by addWrappedPolyline,
@@ -530,12 +582,21 @@ function animateStep() {
   }
   const e = currentMST[animIndex];
   // try to reuse precomputed GC points from worker cache
-  const key = (shared && shared.gcKey) ? shared.gcKey(e.u, e.v) : (Math.min(e.u, e.v) + "|" + Math.max(e.u, e.v));
+  const key =
+    shared && shared.gcKey
+      ? shared.gcKey(e.u, e.v)
+      : Math.min(e.u, e.v) + "|" + Math.max(e.u, e.v);
   let latlngs = gcCacheGlobal.get(key);
   if (!latlngs) {
-    latlngs = (greatCirclePointsShared || function (a, b) {
-      return [[a.lat, a.lon], [b.lat, b.lon]];
-    })(currentCities[e.u], currentCities[e.v], {
+    latlngs = (
+      greatCirclePointsShared ||
+      function (a, b) {
+        return [
+          [a.lat, a.lon],
+          [b.lat, b.lon],
+        ];
+      }
+    )(currentCities[e.u], currentCities[e.v], {
       GC_MIN_SEGMENTS: CFG.GC_MIN_SEGMENTS,
       GC_MAX_SEGMENTS: CFG.GC_MAX_SEGMENTS,
       GC_SEGMENT_FACTOR: CFG.GC_SEGMENT_FACTOR,
@@ -605,6 +666,50 @@ document.getElementById("reset").addEventListener("click", () => {
     map.setView(CFG.MAP_DEFAULT_CENTER, CFG.MAP_DEFAULT_ZOOM);
   }
 });
+
+// Theme toggle button wiring
+try {
+  const themeToggleBtn = document.getElementById("themeToggle");
+  function updateThemeButton() {
+    if (!themeToggleBtn) return;
+    // show the action the button will perform (switch to other theme)
+    const iconChar = currentTheme === "dark" ? "☀" : "🌙";
+    themeToggleBtn.title =
+      currentTheme === "dark" ? "Switch to light mode" : "Switch to dark mode";
+    // animate icon change if span present
+    const iconEl = themeToggleBtn.querySelector(".themeIcon");
+    if (iconEl) {
+      // fade-out, swap char, fade-in
+      try {
+        iconEl.classList.remove("fade-in");
+        iconEl.classList.add("fade-out");
+        setTimeout(() => {
+          iconEl.textContent = iconChar;
+          iconEl.classList.remove("fade-out");
+          iconEl.classList.add("fade-in");
+          setTimeout(() => iconEl.classList.remove("fade-in"), 300);
+        }, 180);
+      } catch (e) {
+        iconEl.textContent = iconChar;
+      }
+    } else {
+      themeToggleBtn.textContent = iconChar;
+    }
+  }
+  themeToggleBtn.addEventListener("click", () => {
+    currentTheme = currentTheme === "dark" ? "light" : "dark";
+    applyTheme(currentTheme);
+    updateThemeButton();
+  });
+  // initialize theme and button state
+  applyTheme(currentTheme);
+  // ensure initial icon is correct without animation
+  try {
+    const iconEl = document.querySelector("#themeToggle .themeIcon");
+    if (iconEl) iconEl.textContent = currentTheme === "dark" ? "☀" : "🌙";
+  } catch (e) {}
+  updateThemeButton();
+} catch (e) {}
 
 async function cacheKeyFromQuery(query) {
   try {
@@ -678,7 +783,10 @@ function _getFocusableElements(root) {
     root.querySelectorAll(
       'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
     )
-  ).filter((el) => el.offsetWidth > 0 || el.offsetHeight > 0 || el === document.activeElement);
+  ).filter(
+    (el) =>
+      el.offsetWidth > 0 || el.offsetHeight > 0 || el === document.activeElement
+  );
 }
 
 function openCustomModal() {
@@ -736,7 +844,10 @@ function closeModal() {
       document.removeEventListener("keydown", _modalKeydownHandler, true);
       _modalKeydownHandler = null;
     }
-    if (_prevFocusBeforeModal && typeof _prevFocusBeforeModal.focus === "function") {
+    if (
+      _prevFocusBeforeModal &&
+      typeof _prevFocusBeforeModal.focus === "function"
+    ) {
       try {
         _prevFocusBeforeModal.focus();
       } catch (e) {}
@@ -753,7 +864,9 @@ function updateEditButton() {
 }
 
 // use shared dedent implementation to avoid duplication
-const dedent = (shared && shared.dedent) || (str => String(str || "").replace(/\r\n/g, "\n"));
+const dedent =
+  (shared && shared.dedent) ||
+  ((str) => String(str || "").replace(/\r\n/g, "\n"));
 
 // load a saved query by storage key (dedented). If not present, write the default and return it.
 function loadSavedQuery(storageKey, defaultQuery = CFG.DEFAULT_CITIES_QUERY) {
@@ -788,7 +901,6 @@ okTop.addEventListener("click", async () => {
   closeModal();
   await runQueryAndRender(q, "Error running custom query: ");
 });
-
 
 closeBtn.addEventListener("click", () => {
   // close modal and restore focus
