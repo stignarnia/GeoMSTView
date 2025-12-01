@@ -115,6 +115,14 @@
           ↺
         </button>
         <button
+          id="exportGif"
+          class="modalBtn"
+          title="Export animation as GIF"
+          aria-label="Export GIF"
+        >
+          📹
+        </button>
+        <button
           id="invalidateCache"
           class="modalBtn btnClose"
           title="Invalidate cache"
@@ -178,7 +186,35 @@
       </div>
     </div>
 
+    <!-- Export GIF modal -->
+    <div
+      id="exportModal"
+      role="dialog"
+      aria-modal="true"
+      aria-hidden="true"
+      aria-labelledby="exportModalTitle"
+      tabindex="-1"
+    >
+      <div class="modalContent exportModalContent">
+        <div class="modalHeader">
+          <strong id="exportModalTitle">Export Animation as GIF</strong>
+          <div class="modalButtons">
+            <button id="closeExportModal" class="modalBtn btnClose" title="Close">
+              ✕
+            </button>
+          </div>
+        </div>
+        <div id="exportStatus" class="exportStatus">Preparing export...</div>
+        <div class="exportProgressContainer">
+          <div id="exportProgressBar" class="exportProgressBar"></div>
+        </div>
+        <div id="exportDetails" class="exportDetails"></div>
+      </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
     <script type="module" src="app/main.js"></script>
   </body>
 </html>

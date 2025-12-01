@@ -405,3 +405,46 @@ body,
   transition: stroke-opacity var(--transition-fade),
     fill-opacity var(--transition-fade), opacity var(--transition-fade);
 }
+
+/* Export modal specific styles */
+.exportModalContent {
+  min-width: 400px;
+}
+
+.exportStatus {
+  margin-bottom: var(--gap-medium);
+  font-size: var(--font-size-description);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.exportProgressContainer {
+  width: 100%;
+  height: 24px;
+  background: var(--query-area-bg);
+  border: 1px solid var(--border-lighter);
+  border-radius: var(--btn-border-radius);
+  overflow: hidden;
+  margin-bottom: var(--gap-medium);
+}
+
+.exportProgressBar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--btn-ok-bg), var(--btn-ok-hover));
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.exportDetails {
+  font-size: var(--font-size-spinner-text);
+  color: var(--text-tertiary);
+  text-align: center;
+  min-height: 1.5em;
+}
+
+/* Hide UI elements during export */
+.exporting-gif .controls,
+.exporting-gif .leaflet-control-container {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

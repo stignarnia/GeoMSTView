@@ -12,6 +12,7 @@ import {
   loadSavedQuery,
 } from "./ui.js";
 import { registerServiceWorker } from "./pwa.js";
+import { exportAnimationAsGif, initExportModal } from "./export-gif.js";
 
 let prevDataset = "capitals";
 
@@ -131,6 +132,16 @@ document.getElementById("reset").addEventListener("click", () => {
     S.map.setView(S.lastDatasetView.center, S.lastDatasetView.zoom);
   } catch (e) {
     S.map.setView(S.CFG.MAP_DEFAULT_CENTER, S.CFG.MAP_DEFAULT_ZOOM);
+  }
+});
+
+// Wire export GIF button
+document.getElementById("exportGif").addEventListener("click", async () => {
+  try {
+    await exportAnimationAsGif();
+  } catch (e) {
+    console.error("Export failed:", e);
+    alert("Failed to export GIF: " + e.message);
   }
 });
 
@@ -341,4 +352,9 @@ try {
       applyValue(v);
     });
   }
+} catch (e) {}
+
+// Initialize export modal
+try {
+  initExportModal();
 } catch (e) {}
