@@ -251,6 +251,11 @@ try {
     algoSel.addEventListener("change", (e) => {
       S.currentAlgorithm = e.target.value;
       resetAnimationState();
+      try {
+        // re-run compute/render for the currently loaded cities so the
+        // change in algorithm takes effect immediately
+        Render.renderCities(S.currentCities);
+      } catch (err) {}
     });
   }
 } catch (e) {}
