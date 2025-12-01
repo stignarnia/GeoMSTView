@@ -71,14 +71,12 @@
   /* Spacing */
   --gap-small: 6px;
   --gap-medium: 8px;
-  --gap-large: 12px;
 
   /* Font sizes */
   --font-size-title: 16px;
   --font-size-modal-title: 14px;
   --font-size-description: 13px;
   --font-size-spinner-text: 12px;
-  --font-size-legend: 12px;
   --font-size-query: 12px;
   --font-size-collapse-btn: 16px;
 
@@ -227,7 +225,6 @@ body,
   background: var(--btn-ok-bg);
   color: var(--text-white);
   border-color: var(--btn-ok-border);
-  transition: background var(--transition-button);
   --btn-variant-hover: var(--btn-ok-hover);
   --btn-variant-active: var(--btn-ok-active);
 }
@@ -236,7 +233,6 @@ body,
   background: var(--btn-close-bg);
   color: var(--text-white);
   border-color: var(--btn-close-border);
-  transition: background var(--transition-button);
   --btn-variant-hover: var(--btn-close-hover);
   --btn-variant-active: var(--btn-close-active);
 }
@@ -245,7 +241,6 @@ body,
   background: var(--btn-revert-bg);
   color: var(--text-dark);
   border-color: var(--btn-revert-border);
-  transition: background var(--transition-button);
   --btn-variant-hover: var(--btn-revert-hover);
   --btn-variant-active: var(--btn-revert-active);
 }
@@ -295,10 +290,6 @@ body,
   to {
     transform: rotate(360deg);
   }
-}
-
-.legend {
-  font-size: var(--font-size-legend);
 }
 
 /* Styles moved from inline attributes in index.html */

@@ -1,4 +1,10 @@
 import CFG from "./settings.json" with { type: "json" };
+import {
+  greatCirclePoints as sharedGreatCirclePoints,
+  gcKey as sharedGcKey,
+  dedent as sharedDedent,
+  parseColor as sharedParseColor,
+} from "./shared.js";
 
 // Compute derived defaults
 CFG.ANIMATION_DELAY_DEFAULT = CFG.SPEED_RANGE.min + CFG.SPEED_RANGE.max - CFG.SPEED_RANGE.default;
@@ -55,7 +61,7 @@ const mstLayerGroup = L.layerGroup().addTo(map);
 mstLayerGroup.options.pane = "overlayPane";
 
 // Worker to offload heavy computation (Prim, distances, GC points)
-const computeWorker = new Worker("worker.js");
+const computeWorker = new Worker("./worker.js", { type: "module" });
 computeWorker._neighbors = [];
 computeWorker.addEventListener("error", (e) => {
   console.error("Worker error", e);
@@ -88,11 +94,6 @@ computeWorker.addEventListener("message", (ev) => {
     if (totalEl) totalEl.textContent = "MST total length: " + total + " km";
   }
 });
-
-// Use shared implementations to avoid duplication with worker
-const shared = self.__MST_shared || {};
-const haversineShared = shared.haversine;
-const greatCirclePointsShared = shared.greatCirclePoints;
 
 // UI helpers for spinner control (centralized to avoid repeated try/catch)
 function showSpinner(text) {
@@ -271,12 +272,10 @@ function redrawCandidateLines() {
     kNearest = CFG.K_MIN + Math.round(frac * (CFG.K_MAX - CFG.K_MIN));
     kNearest = Math.max(CFG.K_MIN, Math.min(CFG.K_MAX, kNearest));
   }
-  // use shared key helper when available to avoid mismatch with worker
+  // canonical gc key for a pair
   const gcKey = (a, b) => {
     try {
-      return shared && shared.gcKey
-        ? shared.gcKey(a, b)
-        : Math.min(a, b) + "|" + Math.max(a, b);
+      return sharedGcKey(a, b);
     } catch (e) {
       return Math.min(a, b) + "|" + Math.max(a, b);
     }
@@ -290,7 +289,7 @@ function redrawCandidateLines() {
       let latlngs = gcCacheGlobal.get(key);
       if (!latlngs) {
         latlngs = (
-          greatCirclePointsShared ||
+          sharedGreatCirclePoints ||
           function (a, b) {
             return [
               [a.lat, a.lon],
@@ -575,8 +574,7 @@ let currentEdgeAnim = null;
 // Helper function to interpolate between two colors
 function lerpColor(color1, color2, t) {
   // Use shared parseColor utility
-  const parseColorFn =
-    (shared && shared.parseColor) || ((c) => ({ r: 255, g: 255, b: 255 }));
+  const parseColorFn = sharedParseColor || ((c) => ({ r: 255, g: 255, b: 255 }));
 
   const c1 = parseColorFn(color1);
   const c2 = parseColorFn(color2);
@@ -594,14 +592,11 @@ function animateStep() {
   }
   const e = currentMST[animIndex];
   // try to reuse precomputed GC points from worker cache
-  const key =
-    shared && shared.gcKey
-      ? shared.gcKey(e.u, e.v)
-      : Math.min(e.u, e.v) + "|" + Math.max(e.u, e.v);
+  const key = sharedGcKey ? sharedGcKey(e.u, e.v) : Math.min(e.u, e.v) + "|" + Math.max(e.u, e.v);
   let latlngs = gcCacheGlobal.get(key);
   if (!latlngs) {
     latlngs = (
-      greatCirclePointsShared ||
+      sharedGreatCirclePoints ||
       function (a, b) {
         return [
           [a.lat, a.lon],
@@ -971,9 +966,7 @@ function updateEditButton() {
 }
 
 // use shared dedent implementation to avoid duplication
-const dedent =
-  (shared && shared.dedent) ||
-  ((str) => String(str || "").replace(/\r\n/g, "\n"));
+const dedent = sharedDedent || ((str) => String(str || "").replace(/\r\n/g, "\n"));
 
 // load a saved query by storage key (dedented). If not present, write the default and return it.
 function loadSavedQuery(storageKey, defaultQuery = CFG.DEFAULT_CITIES_QUERY) {
