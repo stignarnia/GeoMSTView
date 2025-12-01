@@ -109,6 +109,10 @@ export function stopAnimation() {
   }
 }
 
+export function clearCurrentEdgeAnim() {
+  currentEdgeAnim = null;
+}
+
 export function startAnimation() {
   if (S.animateRafId) return;
   S.animateLastStepTs = performance.now();

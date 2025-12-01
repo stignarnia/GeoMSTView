@@ -1,5 +1,19 @@
 import { S } from "./state.js";
 
+export function applyCssVars() {
+  try {
+    const vars = (S && S.CFG && S.CFG.CSS_VARS) || {};
+    const root = typeof document !== "undefined" ? document.documentElement : null;
+    if (!root) return;
+    Object.entries(vars).forEach(([k, v]) => {
+      try {
+        const name = k.startsWith("--") ? k : `--${k}`;
+        root.style.setProperty(name, v);
+      } catch (e) {}
+    });
+  } catch (e) {}
+}
+
 export function initMap() {
   // Compute derived default if not already computed
   try {

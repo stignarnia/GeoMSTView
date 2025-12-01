@@ -1,4 +1,4 @@
-import { initMap, applyTheme } from "./init.js";
+import { initMap, applyTheme, applyCssVars } from "./init.js";
 import { S } from "./state.js";
 import { createWorker, setWorkerMessageHandler } from "./worker-comm.js";
 import * as Render from "./render.js";
@@ -7,7 +7,8 @@ import { runQueryAndRender, cacheKeyFromQuery } from "./api.js";
 import { hideSpinner } from "./ui.js";
 import { dedent } from "./utils.js";
 
-// Initialize map and state
+// Initialize CSS variables, map and state
+applyCssVars();
 initMap();
 createWorker();
 
@@ -42,14 +43,14 @@ document.getElementById("start").addEventListener("click", () => {
   Render.clearMSTLayers();
   Anim.stopAnimation();
   S.animIndex = 0;
-  Anim.currentEdgeAnim = null;
+  Anim.clearCurrentEdgeAnim();
   Anim.startAnimation();
 });
 document.getElementById("reset").addEventListener("click", () => {
   Anim.stopAnimation();
   Render.clearMSTLayers();
   S.animIndex = 0;
-  Anim.currentEdgeAnim = null;
+  Anim.clearCurrentEdgeAnim();
   try {
     S.map.setView(S.lastDatasetView.center, S.lastDatasetView.zoom);
   } catch (e) {
