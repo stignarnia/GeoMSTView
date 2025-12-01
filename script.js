@@ -711,6 +711,19 @@ try {
   updateThemeButton();
 } catch (e) {}
 
+// Collapse toggle wiring
+try {
+  const collapseToggleBtn = document.getElementById('collapseToggle');
+  const controlsPanel = document.querySelector('.controls');
+  if (collapseToggleBtn && controlsPanel) {
+    collapseToggleBtn.addEventListener('click', () => {
+      const isCollapsed = controlsPanel.classList.toggle('collapsed');
+      collapseToggleBtn.title = isCollapsed ? 'Expand panel' : 'Collapse panel';
+      collapseToggleBtn.setAttribute('aria-label', isCollapsed ? 'Expand panel' : 'Collapse panel');
+    });
+  }
+} catch (e) {}
+
 async function cacheKeyFromQuery(query) {
   try {
     const enc = new TextEncoder().encode(query);
