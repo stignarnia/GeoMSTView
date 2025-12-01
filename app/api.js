@@ -47,7 +47,7 @@ export async function fetchOverpass(query, cacheKey) {
         }
         return { name, lat, lon, population: pop };
       })
-      .filter((c) => c.lat && c.lon);
+      .filter((c) => Number.isFinite(c.lat) && Number.isFinite(c.lon));
     try {
       localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), items }));
     } catch (e) {}

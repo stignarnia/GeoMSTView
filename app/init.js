@@ -3,7 +3,8 @@ import { S } from "./state.js";
 export function applyCssVars() {
   try {
     const vars = (S && S.CFG && S.CFG.CSS_VARS) || {};
-    const root = typeof document !== "undefined" ? document.documentElement : null;
+    const root =
+      typeof document !== "undefined" ? document.documentElement : null;
     if (!root) return;
     Object.entries(vars).forEach(([k, v]) => {
       try {
