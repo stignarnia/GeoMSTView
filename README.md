@@ -43,3 +43,6 @@ python -m http.server 8000
 
 ## Troubleshooting
 - Overpass is very slow: try a different Overpass endpoint or reduce the query area/complexity.
+- You can ask AI to help you with making custom overpass queries for your area of interest, just give it the preset one to make it understand what you are talking about.
+- if you just want to change region, country, or local administrative area, you must change change the area at line 2 with the desired ISO 3166 code. You can find that at https://www.iso.org/obp/ui/#search 
+- To change which places you get, edit the filter `["place"~"city|town"]` by replacing or adding place types (e.g., "city", "town", "village", "hamlet", "suburb", "neighbourhood"), such as `["place"="city"]` for only cities, `["place"~"city|town|village"]` for multiple types, or simply `["place"]` to include any place.
