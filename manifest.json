@@ -10,9 +10,15 @@
   "icons": [
     {
       "src": "favicon.png",
-      "sizes": "1269x1276",
+      "sizes": "192x192 512x512 1024x1024",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "favicon.png",
+      "sizes": "192x192 512x512 1024x1024",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "categories": ["education", "utilities"],

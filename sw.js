@@ -92,10 +92,8 @@ self.addEventListener('fetch', (event) => {
             fetch(request)
               .then((networkResponse) => {
                 if (networkResponse && networkResponse.ok) {
-                  caches.open(CACHE_NAME)
-                    .then((cache) => {
-                      cache.put(request, networkResponse.clone());
-                    });
+                  return caches.open(CACHE_NAME)
+                    .then((cache) => cache.put(request, networkResponse.clone()));
                 }
               })
               .catch(() => {
@@ -116,7 +114,7 @@ self.addEventListener('fetch', (event) => {
             // Cache the new response
             return caches.open(CACHE_NAME)
               .then((cache) => {
-                // Don't cache POST requests or responses with no-cache headers
+                // Only cache GET requests
                 if (request.method === 'GET') {
                   cache.put(request, networkResponse.clone());
                 }
