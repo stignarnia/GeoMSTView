@@ -92,13 +92,11 @@ self.addEventListener('fetch', (event) => {
             fetch(request)
               .then((networkResponse) => {
                 if (networkResponse && networkResponse.status === 200) {
-                  return caches.open(CACHE_NAME)
+                  caches.open(CACHE_NAME)
                     .then((cache) => {
                       cache.put(request, networkResponse.clone());
-                      return networkResponse;
                     });
                 }
-                return networkResponse;
               })
               .catch(() => {
                 // Network update failed, but we already returned cached version
@@ -111,7 +109,7 @@ self.addEventListener('fetch', (event) => {
         return fetch(request)
           .then((networkResponse) => {
             // Only cache successful responses
-            if (!networkResponse || networkResponse.status !== 200 || networkResponse.type === 'error') {
+            if (!networkResponse || networkResponse.status !== 200) {
               return networkResponse;
             }
 

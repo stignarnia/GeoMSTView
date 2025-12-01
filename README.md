@@ -2,13 +2,48 @@
 
 Simple interactive demo that computes and visualizes a Minimum Spanning Tree (MST) over a set of cities sourced from OpenStreetMap. The map is rendered with Leaflet and heavy computation (distance matrix, Prim, great-circle points) runs in a Web Worker to keep the UI responsive.
 
+**✨ This app is now a Progressive Web App (PWA)!** You can install it on your device for offline access and an app-like experience.
+
 ## Quick start
 
 1. View the hosted demo at: https://geomstview.pages.dev.
-2. To run locally you must use a local static server (see below) — double-clicking `index.html` will not work.
-3. Choose a dataset from the `Dataset` control: `capitals` (built-in sample), `preset` (a larger preset Overpass query), or `custom` to paste/run your own Overpass QL query.
-4. Press the ▶ `Start` button to animate MST edges being added. Use `Reset` to clear the animation or `🗑` to invalidate cached Overpass results for the current query.
-5. Use the `Animation speed` slider to slow down or speed up the edge animation.
+2. **Install as PWA**: When visiting the site in a modern browser, you'll see an "Install" prompt. Click it to add GeoMSTView to your home screen or app drawer.
+3. To run locally you must use a local static server (see below) — double-clicking `index.html` will not work.
+4. Choose a dataset from the `Dataset` control: `capitals` (built-in sample), `preset` (a larger preset Overpass query), or `custom` to paste/run your own Overpass QL query.
+5. Press the ▶ `Start` button to animate MST edges being added. Use `Reset` to clear the animation or `🗑` to invalidate cached Overpass results for the current query.
+6. Use the `Animation speed` slider to slow down or speed up the edge animation.
+
+## PWA Features
+
+This application is now a **Progressive Web App** with the following capabilities:
+
+- **📱 Installable**: Add to your home screen on mobile devices or desktop
+- **⚡ Offline Support**: Core app functionality works without internet connection after first visit
+- **🎨 Native Feel**: Runs in standalone mode with custom theme colors
+- **🔄 Auto-Updates**: Service worker automatically updates the app in the background
+- **💾 Smart Caching**: App shell is cached for instant loading
+
+### Installing the PWA
+
+**Desktop (Chrome, Edge, Opera):**
+1. Visit the site
+2. Look for the install icon in the address bar
+3. Click "Install" to add it to your applications
+
+**Mobile (Chrome on Android, Safari on iOS):**
+1. Visit the site
+2. Tap the browser menu (⋮ or share button)
+3. Select "Add to Home Screen" or "Install App"
+4. The app icon will appear on your home screen
+
+### How it Works
+
+The PWA implementation includes:
+- **`manifest.json`**: Defines app metadata, icons, and display settings
+- **`sw.js`**: Service worker that caches app resources for offline use
+- **PWA Meta Tags**: Ensures proper display on mobile devices and iOS
+
+The service worker uses a cache-first strategy for app files and a network-first strategy for external resources (map tiles, APIs), ensuring the best balance between offline functionality and fresh content.
 
 ## Custom Overpass queries
 
