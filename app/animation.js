@@ -1,6 +1,5 @@
 import { S } from "./state.js";
 import { gcKey, greatCirclePoints } from "./utils.js";
-import { addWrappedPolyline } from "./render.js";
 
 export let currentEdgeAnim = null;
 
@@ -81,20 +80,76 @@ export function updateEdgeAnimation(timestamp) {
     S.animationDelay * S.CFG.EDGE_GROWTH_DURATION_FACTOR
   );
   currentEdgeAnim.progress = Math.min(1, elapsed / duration);
-  currentEdgeAnim.polylineParts.forEach((p) => {
-    try {
-      if (p && p.remove) p.remove();
-    } catch (e) {}
-  });
-  currentEdgeAnim.polylineParts = [];
+  // Reuse existing polyline parts when possible to avoid frequent create/remove
   const totalPoints = currentEdgeAnim.latlngs.length;
   const pointsToShow = Math.max(
     2,
     Math.floor(totalPoints * currentEdgeAnim.progress)
   );
   const partialLatlngs = currentEdgeAnim.latlngs.slice(0, pointsToShow);
-  const parts = addWrappedPolyline(partialLatlngs, S.CFG.MST_STYLE, S.mstLines);
-  currentEdgeAnim.polylineParts = parts;
+
+  const newParts = [];
+  if (partialLatlngs && partialLatlngs.length) {
+    let seg = [partialLatlngs[0]];
+    let partIndex = 0;
+    const addOrUpdatePart = (latlngSegment) => {
+      const polyOpts = Object.assign({}, S.CFG.MST_STYLE);
+      try {
+        polyOpts.renderer = S.mstCanvasRenderer;
+        polyOpts.pane = "mstPane";
+      } catch (e) {}
+      const parent = S.mstLayerGroup || S.map;
+      const existing =
+        currentEdgeAnim.polylineParts &&
+        currentEdgeAnim.polylineParts[partIndex];
+      if (existing && typeof existing.setLatLngs === "function") {
+        try {
+          existing.setLatLngs(latlngSegment);
+        } catch (e) {}
+        newParts.push(existing);
+      } else {
+        try {
+          const p = L.polyline(latlngSegment, polyOpts).addTo(parent);
+          newParts.push(p);
+          if (Array.isArray(S.mstLines)) S.mstLines.push(p);
+        } catch (e) {}
+      }
+      partIndex++;
+    };
+
+    for (let i = 1; i < partialLatlngs.length; i++) {
+      const prevLon = partialLatlngs[i - 1][1];
+      const curLon = partialLatlngs[i][1];
+      const rawDiff = curLon - prevLon;
+      if (Math.abs(rawDiff) > S.CFG.WRAP_LON_THRESHOLD) {
+        addOrUpdatePart(seg);
+        seg = [partialLatlngs[i]];
+      } else {
+        seg.push(partialLatlngs[i]);
+      }
+    }
+    if (seg.length) addOrUpdatePart(seg);
+  }
+
+  // Remove any leftover old parts that weren't reused
+  if (currentEdgeAnim.polylineParts && currentEdgeAnim.polylineParts.length) {
+    for (
+      let i = newParts.length;
+      i < currentEdgeAnim.polylineParts.length;
+      i++
+    ) {
+      const old = currentEdgeAnim.polylineParts[i];
+      try {
+        if (old && old.remove) old.remove();
+      } catch (e) {}
+      try {
+        const idx = S.mstLines.indexOf(old);
+        if (idx >= 0) S.mstLines.splice(idx, 1);
+      } catch (e) {}
+    }
+  }
+
+  currentEdgeAnim.polylineParts = newParts;
   if (currentEdgeAnim.progress >= 1) {
     currentEdgeAnim = null;
     return true;

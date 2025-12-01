@@ -3,7 +3,7 @@ import { gcKey, greatCirclePoints, computeCitiesKey } from "./utils.js";
 import { postComputeMessage } from "./worker-comm.js";
 import { showSpinner } from "./ui.js";
 
-export function addWrappedPolyline(latlngs, options, collectArray) {
+function addWrappedPolyline(latlngs, options, collectArray) {
   if (!latlngs || !latlngs.length) return [];
   const parts = [];
   let seg = [latlngs[0]];
