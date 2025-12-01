@@ -469,3 +469,8 @@ body,
   border-radius: var(--btn-border-radius);
   padding: var(--query-area-padding);
 }
+
+/* Smooth color transitions for highlight markers */
+.leaflet-interactive.highlight-marker {
+  transition: stroke-opacity 0.3s ease-out, fill-opacity 0.3s ease-out, opacity 0.3s ease-out;
+}

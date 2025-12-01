@@ -51,6 +51,7 @@ const CFG = {
   HIGHLIGHT_COLOR: "blue",
   HIGHLIGHT_FILL: "cyan",
   HIGHLIGHT_FILL_OPACITY: 0.7,
+  HIGHLIGHT_ANIM_DURATION: 300, // milliseconds for color transition
   // Style objects for candidate and MST polylines
   CANDIDATE_STYLE: { color: "#888", weight: 1, opacity: 0.2 },
   MST_STYLE: { color: "red", weight: 3, opacity: 1 },
@@ -108,6 +109,13 @@ const map = L.map("map", {
   zoomControl: false,
 }).setView(CFG.MAP_DEFAULT_CENTER, CFG.MAP_DEFAULT_ZOOM);
 
+// Create custom panes for proper z-index layering
+map.createPane('mstPane');
+map.getPane('mstPane').style.zIndex = 400; // Below default marker pane (600)
+
+map.createPane('highlightPane');
+map.getPane('highlightPane').style.zIndex = 650; // Above markers
+
 // base tile layer (we will replace URL on theme toggle)
 let baseTileLayer = L.tileLayer(CFG.TILE_URL, {
   maxZoom: CFG.TILE_MAX_ZOOM,
@@ -144,6 +152,10 @@ const mstCanvasRenderer = L.canvas({ padding: 0.5 });
 // LayerGroups to pool candidate / mst layers and reduce many add/remove ops
 const candidateLayerGroup = L.layerGroup().addTo(map);
 const mstLayerGroup = L.layerGroup().addTo(map);
+
+// Set pane for MST lines to be below markers
+mstLayerGroup.options.pane = 'overlayPane';
+
 // Worker to offload heavy computation (Prim, distances, GC points)
 const computeWorker = new Worker("worker.js");
 computeWorker._neighbors = [];
@@ -227,8 +239,10 @@ function addWrappedPolyline(latlngs, options, collectArray) {
       try {
         if (options === CFG.CANDIDATE_STYLE)
           polyOpts.renderer = candidateCanvasRenderer;
-        else if (options === CFG.MST_STYLE)
+        else if (options === CFG.MST_STYLE) {
           polyOpts.renderer = mstCanvasRenderer;
+          polyOpts.pane = 'mstPane'; // Ensure MST lines are below markers
+        }
       } catch (e) {}
       // add to appropriate parent group to enable pooling / bulk clear
       const parent =
@@ -246,13 +260,17 @@ function addWrappedPolyline(latlngs, options, collectArray) {
     }
   }
   if (seg.length) {
+    const polyOpts = Object.assign({}, options);
+    if (options === CFG.MST_STYLE) {
+      polyOpts.pane = 'mstPane'; // Ensure MST lines are below markers
+    }
     const parent =
       options === CFG.CANDIDATE_STYLE
         ? candidateLayerGroup
         : options === CFG.MST_STYLE
         ? mstLayerGroup
         : map;
-    const p = L.polyline(seg, options).addTo(parent);
+    const p = L.polyline(seg, polyOpts).addTo(parent);
     parts.push(p);
     if (Array.isArray(collectArray)) collectArray.push(p);
   }
@@ -648,6 +666,41 @@ function renderCities(list) {
   if (totalEl) totalEl.textContent = "MST total length: " + total + " km";
 }
 
+// State for animating a single edge growth
+let currentEdgeAnim = null;
+
+// Helper function to interpolate between two colors
+function lerpColor(color1, color2, t) {
+  // Parse hex colors
+  const parseColor = (c) => {
+    if (c.startsWith('#')) {
+      const hex = c.slice(1);
+      return {
+        r: parseInt(hex.slice(0, 2), 16),
+        g: parseInt(hex.slice(2, 4), 16),
+        b: parseInt(hex.slice(4, 6), 16)
+      };
+    }
+    // Handle named colors
+    const colors = {
+      'red': {r: 255, g: 0, b: 0},
+      'blue': {r: 0, g: 0, b: 255},
+      'cyan': {r: 0, g: 255, b: 255},
+      'yellow': {r: 255, g: 255, b: 0}
+    };
+    return colors[c] || {r: 255, g: 255, b: 255};
+  };
+  
+  const c1 = parseColor(color1);
+  const c2 = parseColor(color2);
+  
+  const r = Math.round(c1.r + (c2.r - c1.r) * t);
+  const g = Math.round(c1.g + (c2.g - c1.g) * t);
+  const b = Math.round(c1.b + (c2.b - c1.b) * t);
+  
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 function animateStep() {
   if (animIndex >= currentMST.length) {
     return;
@@ -676,21 +729,77 @@ function animateStep() {
     });
     gcCacheGlobal.set(key, latlngs);
   }
-  const parts = addWrappedPolyline(latlngs, CFG.MST_STYLE, mstLines);
+  
+  // Add highlights with initial transparent/invisible state
   const h1 = L.circleMarker([currentCities[e.u].lat, currentCities[e.u].lon], {
     radius: CFG.HIGHLIGHT_RADIUS,
     color: CFG.HIGHLIGHT_COLOR,
     fillColor: CFG.HIGHLIGHT_FILL,
-    fillOpacity: CFG.HIGHLIGHT_FILL_OPACITY,
+    fillOpacity: 0,
+    opacity: 0,
+    className: "highlight-marker",
+    pane: "highlightPane"
   }).addTo(map);
   const h2 = L.circleMarker([currentCities[e.v].lat, currentCities[e.v].lon], {
     radius: CFG.HIGHLIGHT_RADIUS,
     color: CFG.HIGHLIGHT_COLOR,
     fillColor: CFG.HIGHLIGHT_FILL,
-    fillOpacity: CFG.HIGHLIGHT_FILL_OPACITY,
+    fillOpacity: 0,
+    opacity: 0,
+    className: "highlight-marker",
+    pane: "highlightPane"
   }).addTo(map);
   highlightMarkers.push(h1, h2);
+  
+  // Fade in the highlights smoothly after a brief delay
+  setTimeout(() => {
+    try {
+      h1.setStyle({ fillOpacity: CFG.HIGHLIGHT_FILL_OPACITY, opacity: 1 });
+      h2.setStyle({ fillOpacity: CFG.HIGHLIGHT_FILL_OPACITY, opacity: 1 });
+    } catch (e) {}
+  }, 50);
+  
+  // Start animating the edge growth
+  currentEdgeAnim = {
+    latlngs: latlngs,
+    progress: 0,
+    polylineParts: [],
+    startTime: performance.now()
+  };
+  
   animIndex++;
+}
+
+function updateEdgeAnimation(timestamp) {
+  if (!currentEdgeAnim) return true; // Edge animation complete
+  
+  const elapsed = timestamp - currentEdgeAnim.startTime;
+  const duration = Math.max(100, animationDelay * 0.8); // Edge grows in 80% of step delay
+  currentEdgeAnim.progress = Math.min(1, elapsed / duration);
+  
+  // Remove old polyline parts
+  currentEdgeAnim.polylineParts.forEach(p => {
+    try {
+      if (p && p.remove) p.remove();
+    } catch (e) {}
+  });
+  currentEdgeAnim.polylineParts = [];
+  
+  // Calculate how many points to show based on progress
+  const totalPoints = currentEdgeAnim.latlngs.length;
+  const pointsToShow = Math.max(2, Math.floor(totalPoints * currentEdgeAnim.progress));
+  const partialLatlngs = currentEdgeAnim.latlngs.slice(0, pointsToShow);
+  
+  // Add the growing polyline
+  const parts = addWrappedPolyline(partialLatlngs, CFG.MST_STYLE, mstLines);
+  currentEdgeAnim.polylineParts = parts;
+  
+  if (currentEdgeAnim.progress >= 1) {
+    currentEdgeAnim = null;
+    return true; // Animation complete
+  }
+  
+  return false; // Still animating
 }
 
 function stopAnimation() {
@@ -705,10 +814,22 @@ function startAnimation() {
   animateLastStepTs = performance.now();
   function loop(ts) {
     if (!animateRafId) return;
-    if (animIndex >= currentMST.length) {
+    if (animIndex >= currentMST.length && !currentEdgeAnim) {
       stopAnimation();
       return;
     }
+    
+    // If we're animating an edge, update it
+    if (currentEdgeAnim) {
+      const edgeComplete = updateEdgeAnimation(ts);
+      if (!edgeComplete) {
+        // Edge still growing, continue loop
+        animateRafId = requestAnimationFrame(loop);
+        return;
+      }
+    }
+    
+    // Check if enough time has passed to start next edge
     if (ts - animateLastStepTs >= animationDelay) {
       try {
         animateStep();
@@ -726,12 +847,14 @@ document.getElementById("start").addEventListener("click", () => {
   clearMSTLayers();
   stopAnimation();
   animIndex = 0;
+  currentEdgeAnim = null;
   startAnimation();
 });
 document.getElementById("reset").addEventListener("click", () => {
   stopAnimation();
   clearMSTLayers();
   animIndex = 0;
+  currentEdgeAnim = null;
   try {
     map.setView(lastDatasetView.center, lastDatasetView.zoom);
   } catch (e) {
