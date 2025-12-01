@@ -105,7 +105,15 @@ const CFG = {
 CFG.ANIMATION_DELAY_DEFAULT =
   CFG.SPEED_RANGE.min + CFG.SPEED_RANGE.max - CFG.SPEED_RANGE.default;
 
-const map = L.map("map").setView(CFG.MAP_DEFAULT_CENTER, CFG.MAP_DEFAULT_ZOOM);
+const map = L.map("map", {
+  zoomControl: false
+}).setView(CFG.MAP_DEFAULT_CENTER, CFG.MAP_DEFAULT_ZOOM);
+
+// Add zoom control to bottom left
+L.control.zoom({
+  position: 'bottomleft'
+}).addTo(map);
+
 // base tile layer (we will replace URL on theme toggle)
 let baseTileLayer = L.tileLayer(CFG.TILE_URL, {
   maxZoom: CFG.TILE_MAX_ZOOM,

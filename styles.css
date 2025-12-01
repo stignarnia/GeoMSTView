@@ -433,3 +433,15 @@ body,
   border-radius: var(--btn-border-radius);
   padding: var(--query-area-padding);
 }
+
+/* Leaflet zoom controls - move to bottom left */
+.leaflet-control-zoom {
+  margin-left: 10px !important;
+  margin-bottom: 10px !important;
+}
+.leaflet-left .leaflet-control-zoom {
+  left: 0;
+}
+.leaflet-bottom .leaflet-control-zoom {
+  bottom: 0;
+}
