@@ -194,6 +194,25 @@ body,
   justify-content: center;
   font-weight: 600;
   color: var(--text-light);
+  transition: background var(--transition-button);
+}
+
+/* Generic hover/active for all modal buttons so icon-only inherits behaviour */
+.modalBtn:hover {
+  background: var(--btn-variant-hover, var(--bg-overlay-hover));
+}
+.modalBtn:active {
+  background: var(--btn-variant-active, var(--bg-overlay-active));
+}
+
+/* Make inline SVG icons scale like text and match other icon sizes */
+.modalBtn svg {
+  width: 1em;
+}
+
+/* Icon-only buttons: keep same footprint as other buttons but centered */
+.modalBtn.iconOnly {
+  padding: 0;
 }
 
 .modalHeader strong {
@@ -209,12 +228,8 @@ body,
   color: var(--text-white);
   border-color: var(--btn-ok-border);
   transition: background var(--transition-button);
-}
-.btnOk:hover {
-  background: var(--btn-ok-hover);
-}
-.btnOk:active {
-  background: var(--btn-ok-active);
+  --btn-variant-hover: var(--btn-ok-hover);
+  --btn-variant-active: var(--btn-ok-active);
 }
 
 .btnClose {
@@ -222,12 +237,8 @@ body,
   color: var(--text-white);
   border-color: var(--btn-close-border);
   transition: background var(--transition-button);
-}
-.btnClose:hover {
-  background: var(--btn-close-hover);
-}
-.btnClose:active {
-  background: var(--btn-close-active);
+  --btn-variant-hover: var(--btn-close-hover);
+  --btn-variant-active: var(--btn-close-active);
 }
 
 .btnRevert {
@@ -235,12 +246,8 @@ body,
   color: var(--text-dark);
   border-color: var(--btn-revert-border);
   transition: background var(--transition-button);
-}
-.btnRevert:hover {
-  background: var(--btn-revert-hover);
-}
-.btnRevert:active {
-  background: var(--btn-revert-active);
+  --btn-variant-hover: var(--btn-revert-hover);
+  --btn-variant-active: var(--btn-revert-active);
 }
 
 /* Spinner */
@@ -391,6 +398,7 @@ body,
   width: calc(100% - var(--controls-modal-margin));
   margin: var(--controls-modal-margin) auto;
   position: relative;
+  box-sizing: border-box;
 }
 .modalHeader {
   display: flex;
@@ -480,6 +488,9 @@ body,
   border: 1px solid var(--border-lighter);
   border-radius: var(--btn-border-radius);
   padding: var(--query-area-padding);
+  box-sizing: border-box;
+  max-width: 100%;
+  resize: vertical;
 }
 
 /* Smooth color transitions for highlight markers */
