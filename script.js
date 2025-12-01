@@ -24,7 +24,7 @@ const CFG = {
   // an inverted mapping: `delay_ms = min + max - sliderValue`.
   // Therefore here `min` corresponds to the fastest animation (smallest delay)
   // and `max` corresponds to the slowest (largest delay).
-  SPEED_RANGE: { min: 5, max: 1000, step: 5, default: 525 },
+  SPEED_RANGE: { min: 1, max: 1000, step: 1, default: 525 },
   // OVERPASS_ENDPOINT: Overpass API endpoint used to run queries
   OVERPASS_ENDPOINT: "https://overpass-api.de/api/interpreter",
   // CACHE_TTL_MS: how long to keep Overpass responses in localStorage
@@ -441,7 +441,7 @@ async function fetchOverpass(query, cacheKey) {
     });
     const text = await resp.text();
     if (!resp.ok) {
-      throw new Error("Overpass request failed: " + resp.status + " — " + text);
+      throw { status: resp.status, rawBody: text };
     }
     const data = JSON.parse(text);
     const items = data.elements
@@ -465,7 +465,75 @@ async function fetchOverpass(query, cacheKey) {
     } catch (e) {}
     return items;
   } catch (err) {
-    throw err;
+    // Unified error handling - all errors processed in one place
+    let statusCode = err.status || "Network";
+    let errorMessage = "";
+    let explanation = "";
+    
+    // Helper function to extract error message from HTML response
+    function extractErrorMessage(rawBody) {
+      if (!rawBody) return "";
+      try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(rawBody, "text/html");
+        const body = doc.body.textContent || doc.body.innerText || "";
+        return body.trim().slice(0, 200) || "No error details provided";
+      } catch (e) {
+        const firstLine = rawBody.split("\n")[0].trim();
+        return firstLine.length < 200 ? firstLine : firstLine.slice(0, 200);
+      }
+    }
+    
+    // Explanation for all HTTP status codes and extract error messages
+    switch (statusCode) {
+      case 400:
+        explanation = " (Bad Request - Invalid query syntax)";
+        errorMessage = extractErrorMessage(err.rawBody);
+        break;
+      case 404:
+        explanation = " (Not Found - Endpoint does not exist)";
+        errorMessage = extractErrorMessage(err.rawBody);
+        break;
+      case 429:
+        explanation = " (Too Many Requests - Rate limited)";
+        errorMessage = extractErrorMessage(err.rawBody);
+        break;
+      case 500:
+        explanation = " (Internal Server Error)";
+        errorMessage = extractErrorMessage(err.rawBody);
+        break;
+      case 502:
+        explanation = " (Bad Gateway)";
+        errorMessage = extractErrorMessage(err.rawBody);
+        break;
+      case 503:
+        explanation = " (Service Unavailable)";
+        errorMessage = extractErrorMessage(err.rawBody);
+        break;
+      case 504:
+        explanation = " (Gateway Timeout)";
+        errorMessage = extractErrorMessage(err.rawBody);
+        break;
+      case "Network":
+        explanation = "";
+        errorMessage = "Cannot connect to " + endpoint + ". The URL may be incorrect or the server may be down.";
+        break;
+      default:
+        if (statusCode >= 500) {
+          explanation = " (Server Error)";
+        } else if (statusCode >= 400) {
+          explanation = " (Client Error)";
+        }
+        errorMessage = extractErrorMessage(err.rawBody) || err.message || "Unknown error";
+    }
+    
+    if (!errorMessage) errorMessage = "Unknown error";
+    
+    const finalMessage = statusCode === "Network" 
+      ? errorMessage 
+      : "HTTP " + statusCode + explanation + ": " + errorMessage;
+    
+    throw new Error(finalMessage);
   } finally {
     hideSpinner();
   }
@@ -992,6 +1060,27 @@ try {
     if (currentCities && currentCities.length) {
       renderCities(currentCities);
     }
+  });
+} catch (e) {}
+
+// Endpoint input wiring
+try {
+  const endpointInput = document.getElementById("endpointInput");
+  const resetEndpointBtn = document.getElementById("resetEndpoint");
+  const DEFAULT_ENDPOINT = CFG.OVERPASS_ENDPOINT;
+
+  // Initialize with current endpoint
+  endpointInput.value = CFG.OVERPASS_ENDPOINT;
+
+  // Update endpoint on input
+  endpointInput.addEventListener("input", (e) => {
+    CFG.OVERPASS_ENDPOINT = e.target.value.trim();
+  });
+
+  // Reset button
+  resetEndpointBtn.addEventListener("click", () => {
+    endpointInput.value = DEFAULT_ENDPOINT;
+    CFG.OVERPASS_ENDPOINT = DEFAULT_ENDPOINT;
   });
 } catch (e) {}
 

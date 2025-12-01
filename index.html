@@ -55,17 +55,22 @@
         </select>
         <div class="algoSpacer"></div>
       </div>
+      <div class="datasetRow">
+        <label for="endpointInput">API Server:</label>
+        <input id="endpointInput" type="text" />
+        <button
+          id="resetEndpoint"
+          title="Reset to default"
+          class="modalBtn btnRevert"
+          aria-label="Reset endpoint"
+        >
+          ⤺
+        </button>
+      </div>
       <div class="speedRow">
         <label for="speedRange">Animation speed:</label>
-        <input
-          id="speedRange"
-          type="range"
-          min="5"
-          max="1000"
-          step="5"
-          value="480"
-        />
-        <span id="speedLabel">525 ms</span>
+        <input id="speedRange" type="range" />
+        <span id="speedLabel"></span>
       </div>
       <div class="btnRow">
         <button

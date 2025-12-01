@@ -327,10 +327,9 @@ body,
 .datasetRow label {
   width: var(--label-width);
 }
-#datasetSelect {
-  flex: 1;
-}
-#algoSelect {
+#datasetSelect,
+#algoSelect,
+#endpointInput {
   flex: 1;
 }
 #editCustom {
