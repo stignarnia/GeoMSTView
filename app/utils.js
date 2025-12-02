@@ -8,12 +8,12 @@ import { S } from "./state.js";
 import * as Anim from "./animation.js";
 import * as Render from "./render.js";
 
-try {
+export const resetAnimationState = () => {
   Anim.stopAnimation();
   Render.clearMSTLayers();
   S.animIndex = 0;
   Anim.clearCurrentEdgeAnim();
-} catch (e) {}
+};
 
 export const computeCitiesKey = (list) => {
   if (!Array.isArray(list) || list.length === 0) return "";

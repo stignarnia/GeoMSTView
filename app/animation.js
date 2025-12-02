@@ -58,12 +58,26 @@ export function animateStep() {
   ).addTo(S.map);
   S.highlightMarkers.push(h1, h2);
 
-  setTimeout(() => {
-    try {
-      h1.setStyle({ fillOpacity: S.CFG.HIGHLIGHT_FILL_OPACITY, opacity: 1 });
-      h2.setStyle({ fillOpacity: S.CFG.HIGHLIGHT_FILL_OPACITY, opacity: 1 });
-    } catch (e) {}
-  }, S.CFG.HIGHLIGHT_FADE_IN_DELAY_MS);
+  // Gradually fade in highlight for canvas-rendered markers so GIF export captures it
+  (function animateHighlight(a, b) {
+    const delay = Number(S.CFG.HIGHLIGHT_FADE_IN_DELAY_MS) || 0;
+    const duration = Number(S.CFG.HIGHLIGHT_ANIM_DURATION) || 300;
+    const targetFill = Number(S.CFG.HIGHLIGHT_FILL_OPACITY) || 1;
+    const targetOp = 1;
+    const start = performance.now() + delay;
+    function step() {
+      const now = performance.now();
+      const t = Math.max(0, Math.min(1, (now - start) / duration));
+      const fill = targetFill * t;
+      const op = targetOp * t;
+      try {
+        a.setStyle({ fillOpacity: fill, opacity: op });
+        b.setStyle({ fillOpacity: fill, opacity: op });
+      } catch (e) {}
+      if (t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  })(h1, h2);
 
   currentEdgeAnim = {
     latlngs: latlngs,
