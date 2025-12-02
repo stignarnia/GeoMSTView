@@ -74,7 +74,6 @@ function showExportModal() {
 }
 
 function hideExportModal() {
-  initModalElements()
   if (!exportModal) return
   try {
     exportModal.classList.remove("visible")
@@ -101,6 +100,7 @@ function hideExportModal() {
 }
 
 function updateExportProgress(progress, status, details = "") {
+  initModalElements()
   if (exportProgressBar) exportProgressBar.style.width = `${progress}%`
   if (exportStatus) exportStatus.textContent = status
   if (exportDetails) exportDetails.textContent = details
