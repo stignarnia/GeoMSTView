@@ -40,6 +40,7 @@ export function animateStep() {
       opacity: 0,
       className: "highlight-marker",
       pane: "highlightPane",
+      renderer: S.mstCanvasRenderer,
     }
   ).addTo(S.map);
   const h2 = L.circleMarker(
@@ -52,6 +53,7 @@ export function animateStep() {
       opacity: 0,
       className: "highlight-marker",
       pane: "highlightPane",
+      renderer: S.mstCanvasRenderer,
     }
   ).addTo(S.map);
   S.highlightMarkers.push(h1, h2);

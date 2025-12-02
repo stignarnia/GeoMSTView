@@ -1,5 +1,6 @@
 import { S } from "./state.js"
-import { gcKey, greatCirclePoints } from "./utils.js"
+import * as Anim from "./animation.js"
+import * as Render from "./render.js"
 
 let exportModal = null
 let exportStatus = null
@@ -78,83 +79,9 @@ async function captureMapFrame() {
   }
 }
 
-function replayAnimationStep(edgeIndex) {
-  if (edgeIndex >= S.currentMST.length) {
-    return null
-  }
-  
-  const e = S.currentMST[edgeIndex]
-  const key = gcKey(e.u, e.v)
-  
-  let latlngs = S.gcCacheGlobal.get(key)
-  if (!latlngs) {
-    latlngs = greatCirclePoints(S.currentCities[e.u], S.currentCities[e.v], {
-      GC_MIN_SEGMENTS: S.CFG.GC_MIN_SEGMENTS,
-      GC_MAX_SEGMENTS: S.CFG.GC_MAX_SEGMENTS,
-      GC_SEGMENT_FACTOR: S.CFG.GC_SEGMENT_FACTOR,
-      DISTANCE_RADIUS_KM: S.CFG.DISTANCE_RADIUS_KM,
-    })
-    S.gcCacheGlobal.set(key, latlngs)
-  }
-
-  // Add highlight markers
-  const h1 = L.circleMarker(
-    [S.currentCities[e.u].lat, S.currentCities[e.u].lon],
-    {
-      radius: S.CFG.HIGHLIGHT_RADIUS,
-      color: S.CFG.HIGHLIGHT_COLOR,
-      fillColor: S.CFG.HIGHLIGHT_FILL,
-      fillOpacity: S.CFG.HIGHLIGHT_FILL_OPACITY,
-      opacity: 1,
-      className: "highlight-marker",
-      pane: "highlightPane",
-    }
-  ).addTo(S.map)
-  
-  const h2 = L.circleMarker(
-    [S.currentCities[e.v].lat, S.currentCities[e.v].lon],
-    {
-      radius: S.CFG.HIGHLIGHT_RADIUS,
-      color: S.CFG.HIGHLIGHT_COLOR,
-      fillColor: S.CFG.HIGHLIGHT_FILL,
-      fillOpacity: S.CFG.HIGHLIGHT_FILL_OPACITY,
-      opacity: 1,
-      className: "highlight-marker",
-      pane: "highlightPane",
-    }
-  ).addTo(S.map)
-
-  // Add MST edge
-  const polyOpts = Object.assign({}, S.CFG.MST_STYLE)
-  try {
-    polyOpts.renderer = S.mstCanvasRenderer
-    polyOpts.pane = "mstPane"
-  } catch (e) {}
-  
-  const parent = S.mstLayerGroup || S.map
-  const polylines = []
-  
-  // Handle wrapped polylines
-  let seg = [latlngs[0]]
-  for (let i = 1; i < latlngs.length; i++) {
-    const prevLon = latlngs[i - 1][1]
-    const curLon = latlngs[i][1]
-    const rawDiff = curLon - prevLon
-    if (Math.abs(rawDiff) > S.CFG.WRAP_LON_THRESHOLD) {
-      const p = L.polyline(seg, polyOpts).addTo(parent)
-      polylines.push(p)
-      seg = [latlngs[i]]
-    } else {
-      seg.push(latlngs[i])
-    }
-  }
-  if (seg.length) {
-    const p = L.polyline(seg, polyOpts).addTo(parent)
-    polylines.push(p)
-  }
-
-  return { highlights: [h1, h2], polylines }
-}
+// NOTE: We no longer replay the animation internally. Export should
+// observe the on-screen animation rendered by `animation.js` and
+// capture frames directly.
 
 export async function exportAnimationAsGif() {
   // Check if gif.js is loaded
@@ -302,36 +229,55 @@ export async function exportAnimationAsGif() {
       throw error
     }
 
-    // Capture frames for each MST edge
-    const totalFrames = S.currentMST.length
+    // Start the real on-screen animation and capture frames while it runs.
+    try {
+      // Reset on-screen animation state and clear existing MST layers so
+      // the real animation runs from the start
+      try {
+        Anim.stopAnimation()
+      } catch (e) {}
+      try {
+        Render.clearMSTLayers()
+      } catch (e) {}
+      try {
+        S.animIndex = 0
+        Anim.clearCurrentEdgeAnim()
+      } catch (e) {}
+
+      Anim.startAnimation()
+    } catch (e) {}
+
+    const totalEdges = S.currentMST.length || 1
     let frameCount = 0
 
-    for (let i = 0; i < S.currentMST.length; i++) {
-      const stepLayers = replayAnimationStep(i)
-      if (stepLayers) {
-        tempHighlights.push(...stepLayers.highlights)
-        tempPolylines.push(...stepLayers.polylines)
+    const captureInterval = gifConfig.CAPTURE_INTERVAL_MS || Math.max(50, Math.floor((S.animationDelay || 200) / 2))
+
+    // Capture frames periodically while the animation is active
+    while (S.animateRafId) {
+      await new Promise(resolve => setTimeout(resolve, captureInterval))
+      try {
+        const canvas = await captureMapFrame()
+        gif.addFrame(canvas, { delay: gifConfig.EDGE_FRAME_DELAY_MS || 200 })
+        frameCount++
+        const progress = 5 + (frameCount / totalEdges) * 60
+        updateExportProgress(
+          Math.min(65, progress),
+          "Capturing frames...",
+          `Frame ${frameCount} of ${totalEdges}`
+        )
+      } catch (err) {
+        if (err.message === "CORS_ERROR") throw err
+        console.warn('Frame capture failed, continuing:', err)
       }
-
-      // Small delay for rendering
-      await new Promise(resolve => setTimeout(resolve, gifConfig.RENDER_DELAY_MS || 50))
-
-      // Capture frame
-      const canvas = await captureMapFrame()
-      gif.addFrame(canvas, { delay: gifConfig.EDGE_FRAME_DELAY_MS || 200 })
-      frameCount++
-
-      const progress = 5 + (frameCount / totalFrames) * 60
-      updateExportProgress(
-        progress,
-        "Capturing frames...",
-        `Frame ${i + 1} of ${S.currentMST.length}`
-      )
     }
 
-    // Capture final frame (hold the complete MST)
-    const finalCanvas = await captureMapFrame()
-    gif.addFrame(finalCanvas, { delay: gifConfig.FINAL_FRAME_DELAY_MS || 1000 })
+    // Ensure we capture a final hold frame after animation completes
+    try {
+      const finalCanvas = await captureMapFrame()
+      gif.addFrame(finalCanvas, { delay: gifConfig.FINAL_FRAME_DELAY_MS || 1000 })
+    } catch (err) {
+      if (err.message === "CORS_ERROR") throw err
+    }
 
     updateExportProgress(70, "Encoding GIF...", "This may take a moment")
 

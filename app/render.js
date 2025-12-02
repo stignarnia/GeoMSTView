@@ -7,20 +7,28 @@ function addWrappedPolyline(latlngs, options, collectArray) {
   if (!latlngs || !latlngs.length) return [];
   const parts = [];
   let seg = [latlngs[0]];
+  // helper to unify renderer/pane for candidate and mst styles
+  const getPolyOpts = (opts) => {
+    const polyOpts = Object.assign({}, opts);
+    try {
+      if (opts === S.CFG.CANDIDATE_STYLE) {
+        // Force candidates to use the MST canvas renderer and pane
+        polyOpts.renderer = S.mstCanvasRenderer;
+        polyOpts.pane = "mstPane";
+      } else if (opts === S.CFG.MST_STYLE) {
+        polyOpts.renderer = S.mstCanvasRenderer;
+        polyOpts.pane = "mstPane";
+      }
+    } catch (e) {}
+    return polyOpts;
+  };
+
   for (let i = 1; i < latlngs.length; i++) {
     const prevLon = latlngs[i - 1][1];
     const curLon = latlngs[i][1];
     const rawDiff = curLon - prevLon;
     if (Math.abs(rawDiff) > S.CFG.WRAP_LON_THRESHOLD) {
-      const polyOpts = Object.assign({}, options);
-      try {
-        if (options === S.CFG.CANDIDATE_STYLE)
-          polyOpts.renderer = S.candidateCanvasRenderer;
-        else if (options === S.CFG.MST_STYLE) {
-          polyOpts.renderer = S.mstCanvasRenderer;
-          polyOpts.pane = "mstPane";
-        }
-      } catch (e) {}
+      const polyOpts = getPolyOpts(options);
       const parent =
         options === S.CFG.CANDIDATE_STYLE
           ? S.candidateLayerGroup
@@ -36,8 +44,7 @@ function addWrappedPolyline(latlngs, options, collectArray) {
     }
   }
   if (seg.length) {
-    const polyOpts = Object.assign({}, options);
-    if (options === S.CFG.MST_STYLE) polyOpts.pane = "mstPane";
+    const polyOpts = getPolyOpts(options);
     const parent =
       options === S.CFG.CANDIDATE_STYLE
         ? S.candidateLayerGroup
@@ -148,6 +155,7 @@ export async function renderCities(list, postCompute = true) {
   S.currentCities.forEach((c) => {
     const m = L.circleMarker([c.lat, c.lon], {
       radius: S.CFG.MARKER_RADIUS,
+      renderer: S.mstCanvasRenderer,
     }).addTo(S.map);
     try {
       const container = document.createElement("div");
