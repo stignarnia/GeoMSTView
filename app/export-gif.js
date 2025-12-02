@@ -18,6 +18,7 @@ let exportModal,
   closeExportModalBtn;
 let exportAbort = null;
 let ffmpegInstance = null;
+let ffmpegWorkerURL = null;
 let currentCleanup = null;
 
 function initModalElements() {
@@ -49,22 +50,34 @@ async function getFFmpeg() {
     }
   })
   
-  // Use multi-threaded core with proper worker configuration
-  const baseURL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm"
-  
-  // Fetch worker script and create blob URL
-  const workerResponse = await fetch(`${baseURL}/ffmpeg-core.worker.js`)
-  const workerBlob = new Blob([await workerResponse.text()], { type: 'text/javascript' })
-  const workerURL = URL.createObjectURL(workerBlob)
-  
-  await ffmpeg.load({
-    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
-    workerURL: workerURL,
-  })
-  
-  ffmpegInstance = ffmpeg
-  return ffmpeg
+  try {
+    // Use multi-threaded core with proper worker configuration
+    const baseURL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm"
+    
+    // Fetch worker script and create blob URL
+    const workerResponse = await fetch(`${baseURL}/ffmpeg-core.worker.js`)
+    if (!workerResponse.ok) {
+      throw new Error(`Failed to fetch FFmpeg worker: ${workerResponse.status}`)
+    }
+    const workerBlob = new Blob([await workerResponse.text()], { type: 'text/javascript' })
+    ffmpegWorkerURL = URL.createObjectURL(workerBlob)
+    
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+      workerURL: ffmpegWorkerURL,
+    })
+    
+    ffmpegInstance = ffmpeg
+    return ffmpeg
+  } catch (error) {
+    // Cleanup worker URL on error
+    if (ffmpegWorkerURL) {
+      URL.revokeObjectURL(ffmpegWorkerURL)
+      ffmpegWorkerURL = null
+    }
+    throw new Error(`Failed to load FFmpeg: ${error.message}`)
+  }
 }
 
 function showExportModal() {
