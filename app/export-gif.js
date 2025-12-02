@@ -49,11 +49,11 @@ async function getFFmpeg() {
     }
   })
   
-  const baseURL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm"
+  // Use single-threaded core to avoid worker CORS issues
+  const baseURL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core-st@0.12.6/dist/esm"
   await ffmpeg.load({
     coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
     wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
-    workerURL: await toBlobURL(`${baseURL}/ffmpeg-core.worker.js`, "text/javascript"),
   })
   
   ffmpegInstance = ffmpeg
