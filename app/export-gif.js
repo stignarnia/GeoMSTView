@@ -1,18 +1,24 @@
-import { S } from "./state.js"
-import * as Anim from "./animation.js"
-import * as Render from "./render.js"
-import { resetAnimationState } from "./utils.js"
-import { FFmpeg } from "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js"
-import { toBlobURL } from "https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js"
+import { S } from "./state.js";
+import * as Anim from "./animation.js";
+import * as Render from "./render.js";
+import { resetAnimationState } from "./utils.js";
+import { FFmpeg } from "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js";
+import { toBlobURL } from "https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js";
+
+// FFmpeg encoding constants
+const FFMPEG_MAX_COLORS = 256; // Max colors for palette generation
+const FFMPEG_BAYER_SCALE = 5; // Dithering scale (0-5, higher = less dithering)
+const MIN_FPS = 10; // Minimum frame rate for smooth playback
+const MAX_FPS = 30; // Maximum frame rate to avoid large file sizes
 
 let exportModal,
   exportStatus,
   exportProgressBar,
   exportDetails,
-  closeExportModalBtn
-let exportAbort = null
-let ffmpegInstance = null
-let currentCleanup = null
+  closeExportModalBtn;
+let exportAbort = null;
+let ffmpegInstance = null;
+let currentCleanup = null;
 
 function initModalElements() {
   if (!exportModal) {
@@ -283,14 +289,14 @@ export async function exportAnimationAsGif() {
     
     updateExportProgress(70, "Encoding GIF...", "Starting FFmpeg")
     
-    // Calculate frame rate based on capture duration
-    const fps = Math.min(30, Math.max(10, Math.round(buffer.length / (duration / 1000))))
+    // Calculate frame rate based on capture duration (bounded by MIN_FPS and MAX_FPS)
+    const fps = Math.min(MAX_FPS, Math.max(MIN_FPS, Math.round(buffer.length / (duration / 1000))))
     
-    // Run FFmpeg to create GIF
+    // Run FFmpeg to create GIF with palette generation for better quality
     await ffmpeg.exec([
       "-framerate", String(fps),
       "-i", "frame%05d.png",
-      "-vf", "split[s0][s1];[s0]palettegen=max_colors=256[p];[s1][p]paletteuse=dither=bayer:bayer_scale=5",
+      "-vf", `split[s0][s1];[s0]palettegen=max_colors=${FFMPEG_MAX_COLORS}[p];[s1][p]paletteuse=dither=bayer:bayer_scale=${FFMPEG_BAYER_SCALE}`,
       "-loop", "0",
       "output.gif"
     ])
