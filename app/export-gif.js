@@ -1,32 +1,18 @@
 import { S } from "./state.js";
 import * as Anim from "./animation.js";
 import * as Render from "./render.js";
+import { resetAnimationState } from "./utils.js";
 
-let exportModal = null;
-let exportStatus = null;
-let exportProgressBar = null;
-let exportDetails = null;
-let closeExportModalBtn = null;
+let exportModal,
+  exportStatus,
+  exportProgressBar,
+  exportDetails,
+  closeExportModalBtn;
+let exportAbort = null;
+let currentGif = null;
+let currentCleanup = null;
 
-// Create inline worker script to avoid CORS issues
-function createWorkerBlob() {
-  // Fetch the worker script and create a blob URL
-  return fetch("https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js")
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error(
-          `Failed to fetch worker script: ${response.status} ${response.statusText}`
-        );
-      }
-      return response.text();
-    })
-    .then((workerCode) => {
-      const blob = new Blob([workerCode], { type: "application/javascript" });
-      return URL.createObjectURL(blob);
-    });
-}
-
-function showExportModal() {
+function initModalElements() {
   if (!exportModal) {
     exportModal = document.getElementById("exportModal");
     exportStatus = document.getElementById("exportStatus");
@@ -34,28 +20,36 @@ function showExportModal() {
     exportDetails = document.getElementById("exportDetails");
     closeExportModalBtn = document.getElementById("closeExportModal");
   }
+}
+
+async function createWorkerBlob() {
+  const response = await fetch(
+    "https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js"
+  );
+  if (!response.ok) throw new Error(`Worker fetch failed: ${response.status}`);
+  const workerCode = await response.text();
+  return URL.createObjectURL(
+    new Blob([workerCode], { type: "application/javascript" })
+  );
+}
+
+function showExportModal() {
+  initModalElements();
   if (!exportModal) return;
-  // Force visibility and on-top stacking in case CSS variables/pane order
   try {
-    exportModal.style.display = "flex";
-    exportModal.style.zIndex =
-      (
-        getComputedStyle(document.documentElement).getPropertyValue(
-          "--z-modal"
-        ) || 2000
-      ).trim() || 2000;
-    exportModal.style.pointerEvents = "auto";
-    exportModal.offsetWidth; // force reflow
+    const z =
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--z-modal")
+        .trim() || 2000;
+    exportModal.style.cssText = `display: flex; z-index: ${z}; pointer-events: auto;`;
+    exportModal.offsetWidth;
     exportModal.classList.add("visible");
     exportModal.setAttribute("aria-hidden", "false");
-    // also ensure modalContent is visible immediately
-    try {
-      const mc = exportModal.querySelector(".modalContent");
-      if (mc) {
-        mc.style.transform = "translateY(0) scale(1)";
-        mc.style.opacity = "1";
-      }
-    } catch (e) {}
+    const mc = exportModal.querySelector(".modalContent");
+    if (mc) {
+      mc.style.transform = "translateY(0) scale(1)";
+      mc.style.opacity = "1";
+    }
   } catch (e) {}
 }
 
@@ -72,8 +66,6 @@ function hideExportModal() {
   setTimeout(() => {
     try {
       exportModal.style.display = "none";
-    } catch (e) {}
-    try {
       exportModal.setAttribute("aria-hidden", "true");
     } catch (e) {}
   }, 300);
@@ -81,11 +73,11 @@ function hideExportModal() {
 
 function updateExportProgress(progress, status, details = "") {
   try {
+    initModalElements();
     if (!exportProgressBar && !exportStatus && !exportDetails) return;
     if (exportProgressBar) {
       exportProgressBar.style.transition = "width 0.12s linear";
       exportProgressBar.style.width = `${progress}%`;
-      // force reflow to prompt paint
       void exportProgressBar.offsetWidth;
     }
     if (exportStatus) exportStatus.textContent = status;
@@ -93,423 +85,276 @@ function updateExportProgress(progress, status, details = "") {
   } catch (e) {}
 }
 
-function logExportStep(msg) {
-  try {
-    const t = new Date().toISOString().substr(11, 8);
-    const out = `${t} — ${msg}`;
-    console.log("EXPORT:", out);
-    if (exportDetails) {
-      // prepend so latest is visible
-      exportDetails.textContent =
-        out + "\n" + (exportDetails.textContent || "");
-    }
-  } catch (e) {}
-}
-
 async function captureMapFrame() {
-  const mapContainer = S.map.getContainer();
-  if (!mapContainer) throw new Error("Map container not found");
-
+  const mc = S.map?.getContainer();
+  if (!mc) throw new Error("Map container not found");
   try {
-    const canvas = await html2canvas(mapContainer, {
+    return await html2canvas(mc, {
       useCORS: true,
       allowTaint: false,
       backgroundColor: null,
       logging: false,
       scale: 1,
-      width: mapContainer.offsetWidth,
-      height: mapContainer.offsetHeight,
+      width: mc.offsetWidth,
+      height: mc.offsetHeight,
     });
-    return canvas;
-  } catch (error) {
-    // Check if it's a CORS/tainted canvas issue
-    if (
-      error.message &&
-      (error.message.includes("tainted") || error.message.includes("CORS"))
-    ) {
+  } catch (e) {
+    if (e.message?.includes("tainted") || e.message?.includes("CORS"))
       throw new Error("CORS_ERROR");
-    }
-    throw error;
+    throw e;
   }
 }
 
-// NOTE: We no longer replay the animation internally. Export should
-// observe the on-screen animation rendered by `animation.js` and
-// capture frames directly.
-
 export async function exportAnimationAsGif() {
-  // Basic prechecks
-  if (typeof GIF === "undefined") {
-    alert("GIF library not loaded. Please refresh the page and try again.");
-    return;
+  if (typeof GIF === "undefined" || typeof html2canvas === "undefined") {
+    return alert("GIF.js or html2canvas missing.");
   }
-  if (typeof html2canvas === "undefined") {
-    alert(
-      "html2canvas library not loaded. Please refresh the page and try again."
-    );
-    return;
-  }
-  if (!S.currentMST || S.currentMST.length === 0) {
-    alert(
-      "No MST animation to export. Please load a dataset and compute the MST first."
-    );
-    return;
+  if (!S.currentMST?.length) {
+    return alert("No MST animation to export.");
   }
 
   showExportModal();
-  updateExportProgress(0, "Preparing export...", "");
+  updateExportProgress(0, "Initializing...", "");
   await new Promise((r) => requestAnimationFrame(r));
   await new Promise((r) => requestAnimationFrame(r));
 
-  // Prepare temp tracking and helpers
-  const tempHighlights = [];
-  const tempPolylines = [];
   let workerUrl = null;
-
-  const cleanupTempLayers = () => {
-    tempHighlights.forEach((h) => {
-      try {
-        S.map.removeLayer(h);
-      } catch (e) {}
-    });
-    tempHighlights.length = 0;
-    tempPolylines.forEach((p) => {
-      try {
-        S.map.removeLayer(p);
-      } catch (e) {}
-    });
-    tempPolylines.length = 0;
-  };
-
-  const disableMapInteractions = () => {
-    try {
-      S.map.dragging.disable();
-      S.map.touchZoom.disable();
-      S.map.doubleClickZoom.disable();
-      S.map.scrollWheelZoom.disable();
-      S.map.boxZoom.disable();
-      S.map.keyboard.disable();
-      if (S.map.tap) S.map.tap.disable();
-    } catch (e) {}
-  };
-
-  const enableMapInteractions = () => {
-    try {
-      S.map.dragging.enable();
-      S.map.touchZoom.enable();
-      S.map.doubleClickZoom.enable();
-      S.map.scrollWheelZoom.enable();
-      S.map.boxZoom.enable();
-      S.map.keyboard.enable();
-      if (S.map.tap) S.map.tap.enable();
-    } catch (e) {}
-  };
-
   const cleanup = () => {
-    cleanupTempLayers();
-    enableMapInteractions();
+    try {
+      S.mstLayerGroup?.clearLayers();
+    } catch (e) {}
+    try {
+      S.highlightMarkers?.forEach((h) => S.map.removeLayer(h));
+    } catch (e) {}
+    S.highlightMarkers = [];
+    try {
+      S.map.dragging?.enable();
+      S.map.touchZoom?.enable();
+      S.map.doubleClickZoom?.enable();
+      S.map.scrollWheelZoom?.enable();
+      S.map.boxZoom?.enable();
+      S.map.keyboard?.enable();
+      S.map.tap?.enable();
+    } catch (e) {}
     document.body.classList.remove("exporting-gif");
-    if (workerUrl) {
-      URL.revokeObjectURL(workerUrl);
-      workerUrl = null;
-    }
+    if (workerUrl) URL.revokeObjectURL(workerUrl);
+    // release gif/abort state (do not re-create animation here — use central reset)
+    try {
+      if (currentGif && typeof currentGif.abort === "function") currentGif.abort();
+    } catch (e) {}
+    exportAbort = null;
+    try {
+      S.exportingGif = false;
+    } catch (e) {}
+    currentGif = null;
+    currentCleanup = null;
   };
 
   try {
-    // Save map state and prepare
-    const currentCenter = S.map.getCenter();
-    const currentZoom = S.map.getZoom();
-    disableMapInteractions();
-
-    try {
-      S.mstLayerGroup.clearLayers();
-    } catch (e) {}
-    S.highlightMarkers.forEach((h) => S.map.removeLayer(h));
+    exportAbort = { aborted: false };
+    S.exportingGif = true;
+    currentCleanup = cleanup;
+    S.map.dragging?.disable();
+    S.map.touchZoom?.disable();
+    S.map.doubleClickZoom?.disable();
+    S.map.scrollWheelZoom?.disable();
+    S.map.boxZoom?.disable();
+    S.map.keyboard?.disable();
+    S.map.tap?.disable();
+    S.mstLayerGroup?.clearLayers();
+    S.highlightMarkers?.forEach((h) => S.map.removeLayer(h));
     S.highlightMarkers.length = 0;
     document.body.classList.add("exporting-gif");
+
     await new Promise((r) => setTimeout(r, 100));
-    updateExportProgress(
-      5,
-      "Capturing frames...",
-      "Frame 0 of " + S.currentMST.length
-    );
-    // give browser time to paint modal and progress bar before heavy work
-    await new Promise((r) => requestAnimationFrame(r));
-    await new Promise((r) => requestAnimationFrame(r));
-    await new Promise((r) => setTimeout(r, 150));
+    updateExportProgress(5, "Loading Encoder...", "");
 
-    // Load worker script
-    try {
-      logExportStep("Loading GIF worker blob");
-      workerUrl = await createWorkerBlob();
-      logExportStep("GIF worker blob loaded");
-    } catch (workerError) {
-      console.error("Failed to load worker script:", workerError);
-      logExportStep(
-        "Failed to load GIF worker blob: " +
-          (workerError && workerError.message
-            ? workerError.message
-            : String(workerError))
-      );
+    workerUrl = await createWorkerBlob();
+    if (exportAbort?.aborted || !S.exportingGif) {
+      // user cancelled while loading encoder
       cleanup();
       hideExportModal();
-      alert(
-        "Failed to load GIF encoder worker. Please check your internet connection."
-      );
       return;
     }
-
-    // Use only user GIF config
-    const gifConfig = S.CFG.GIF_EXPORT;
-    if (!gifConfig) {
-      cleanup();
-      hideExportModal();
-      alert("GIF export configuration missing (S.CFG.GIF_EXPORT)");
-      return;
-    }
-    const required = [
+    const cfg = S.CFG.GIF_EXPORT;
+    const req = [
       "WORKERS",
       "QUALITY",
       "INITIAL_FRAME_DELAY_MS",
       "FINAL_FRAME_DELAY_MS",
     ];
-    for (const k of required) {
-      if (typeof gifConfig[k] === "undefined") {
-        cleanup();
-        hideExportModal();
-        alert("GIF export missing key: " + k);
-        return;
-      }
-    }
-    if (typeof S.animationDelay === "undefined" || S.animationDelay === null) {
+    if (!cfg || !req.every((k) => cfg[k] !== undefined))
+      throw new Error("Invalid GIF config");
+    if (S.animationDelay == null) throw new Error("Animation speed unknown");
+
+    const mc = S.map.getContainer();
+    let gif = new GIF({
+      workers: cfg.WORKERS,
+      quality: cfg.QUALITY,
+      workerScript: workerUrl,
+      width: mc.offsetWidth,
+      height: mc.offsetHeight,
+    });
+    currentGif = gif;
+
+    const firstFrame = await captureMapFrame();
+    if (exportAbort?.aborted || !S.exportingGif) {
       cleanup();
       hideExportModal();
-      alert(
-        "Animation speed unknown (S.animationDelay). Configure animation before exporting."
-      );
       return;
     }
-
-    logExportStep("Initializing GIF encoder");
-    const gif = new GIF({
-      workers: gifConfig.WORKERS,
-      quality: gifConfig.QUALITY,
-      workerScript: workerUrl,
-      width: S.map.getContainer().offsetWidth,
-      height: S.map.getContainer().offsetHeight,
+    gif.addFrame(firstFrame, {
+      delay: cfg.INITIAL_FRAME_DELAY_MS,
     });
-    logExportStep("GIF encoder initialized");
 
-    // initial hold frame
-    try {
-      logExportStep("Capturing initial frame");
-      const initialCanvas = await captureMapFrame();
-      gif.addFrame(initialCanvas, { delay: gifConfig.INITIAL_FRAME_DELAY_MS });
-      logExportStep("Initial frame captured");
-    } catch (error) {
-      if (error.message === "CORS_ERROR") {
-        cleanup();
-        hideExportModal();
-        alert(
-          "GIF export failed due to CORS restrictions from the tile server. Use CORS-compatible tiles or server-side export."
-        );
-        return;
-      }
-      throw error;
+    Anim.stopAnimation();
+    Render.clearMSTLayers();
+    S.animIndex = 0;
+    Anim.clearCurrentEdgeAnim();
+    if (exportAbort?.aborted || !S.exportingGif) {
+      cleanup();
+      hideExportModal();
+      return;
     }
-
-    // Start on-screen animation
-    try {
-      Anim.stopAnimation();
-    } catch (e) {}
-    try {
-      Render.clearMSTLayers();
-    } catch (e) {}
-    try {
-      S.animIndex = 0;
-      Anim.clearCurrentEdgeAnim();
-    } catch (e) {}
-    logExportStep("Starting on-screen animation");
     Anim.startAnimation();
-    logExportStep("On-screen animation started");
 
-    // Capture at high rate into buffer with caps
-    const MAX_CAPTURE_FRAMES = gifConfig.MAX_CAPTURE_FRAMES
-      ? Number(gifConfig.MAX_CAPTURE_FRAMES)
-      : 200;
-    const MAX_MULTIPLIER = gifConfig.MAX_MULTIPLIER
-      ? Number(gifConfig.MAX_MULTIPLIER)
-      : 8;
-    const MAX_BLEND_STEPS = gifConfig.MAX_BLEND_STEPS
-      ? Number(gifConfig.MAX_BLEND_STEPS)
-      : 6;
+    const maxFrames = Number(cfg.MAX_CAPTURE_FRAMES ?? 200);
+    const buffer = [];
+    const start = performance.now();
 
-    const framesBuffer = [];
-    const captureInterval = 16;
-    const animStart = performance.now();
-    while (S.animateRafId) {
-      await new Promise((r) => setTimeout(r, captureInterval));
+    while (S.animateRafId && buffer.length < maxFrames) {
+      if (exportAbort?.aborted) break;
+      await new Promise((r) => setTimeout(r, 16));
       try {
-        if (framesBuffer.length < MAX_CAPTURE_FRAMES) {
-          const c = await captureMapFrame();
-          framesBuffer.push(c);
-          updateExportProgress(
-            Math.min(
-              65,
-              5 + (framesBuffer.length / Math.max(1, S.currentMST.length)) * 60
-            ),
-            "Capturing frames...",
-            `Captured ${framesBuffer.length} frames`
-          );
-          logExportStep(`Captured frame ${framesBuffer.length}`);
-          await new Promise((r) => setTimeout(r, 0));
-        }
-      } catch (err) {
-        if (err.message === "CORS_ERROR") throw err;
-        console.warn("Frame capture failed, continuing:", err);
-      }
-    }
-    logExportStep(`Finished capture: ${framesBuffer.length} frames collected`);
-    const animEnd = performance.now();
-    const animDuration = Math.max(0, animEnd - animStart);
-    if (framesBuffer.length === 0) {
-      try {
-        framesBuffer.push(await captureMapFrame());
+        buffer.push(await captureMapFrame());
+        updateExportProgress(
+          5 + (buffer.length / Math.max(1, S.currentMST.length)) * 60,
+          "Capturing...",
+          `${buffer.length} frames`
+        );
+        await new Promise((r) => setTimeout(r, 0));
       } catch (e) {
         if (e.message === "CORS_ERROR") throw e;
       }
     }
 
-    // Interpolate lightly, bounded
-    const targetFPS = gifConfig.TARGET_FPS ? Number(gifConfig.TARGET_FPS) : 240;
-    const capturedFPS = Math.max(
-      1,
-      Math.round((framesBuffer.length / Math.max(1, animDuration)) * 1000)
-    );
-    let multiplier = Math.max(1, Math.ceil(targetFPS / capturedFPS));
-    if (multiplier > MAX_MULTIPLIER) multiplier = MAX_MULTIPLIER;
+    const duration = Math.max(0, performance.now() - start);
+    if (!buffer.length) buffer.push(await captureMapFrame());
 
-    const extendedFrames = [];
-    const blendCanvases = (cA, cB, steps) => {
-      const w = cA.width,
-        h = cA.height;
-      const out = [];
-      const actual = Math.min(steps, MAX_BLEND_STEPS);
-      for (let s = 0; s < actual; s++) {
-        const t = (s + 1) / (actual + 1);
-        const canv = document.createElement("canvas");
-        canv.width = w;
-        canv.height = h;
-        const ctx = canv.getContext("2d");
-        ctx.drawImage(cA, 0, 0);
+    const maxMult = Number(cfg.MAX_MULTIPLIER ?? 8);
+    const maxBlend = Number(cfg.MAX_BLEND_STEPS ?? 6);
+    const targetFPS = Number(cfg.TARGET_FPS ?? 240);
+    const capFPS = Math.max(
+      1,
+      Math.round((buffer.length / Math.max(1, duration)) * 1000)
+    );
+    let mult = Math.min(maxMult, Math.max(1, Math.ceil(targetFPS / capFPS)));
+
+    const extended = [];
+    const blend = (a, b, s) => {
+      const out = [],
+        act = Math.min(s, maxBlend);
+      const cv = document.createElement("canvas"),
+        ctx = cv.getContext("2d");
+      cv.width = a.width;
+      cv.height = a.height;
+      for (let k = 0; k < act; k++) {
+        const t = (k + 1) / (act + 1);
+        ctx.clearRect(0, 0, cv.width, cv.height);
+        ctx.drawImage(a, 0, 0);
         ctx.globalAlpha = t;
-        ctx.drawImage(cB, 0, 0);
+        ctx.drawImage(b, 0, 0);
         ctx.globalAlpha = 1;
-        out.push(canv);
+        const c = document.createElement("canvas");
+        c.width = cv.width;
+        c.height = cv.height;
+        c.getContext("2d").drawImage(cv, 0, 0);
+        out.push(c);
       }
       return out;
     };
-    for (let i = 0; i < framesBuffer.length - 1; i++) {
-      const a = framesBuffer[i];
-      const b = framesBuffer[i + 1];
-      extendedFrames.push(a);
-      if (multiplier > 1) {
-        try {
-          const blends = blendCanvases(a, b, multiplier - 1);
-          for (const cb of blends) extendedFrames.push(cb);
-        } catch (e) {
-          // skip blending on error
-        }
-      }
-      // update progress and yield to allow UI repaint
-      try {
-        updateExportProgress(
-          Math.min(65, 5 + (i / Math.max(1, framesBuffer.length)) * 60),
-          "Preparing frames...",
-          `Prepared ${extendedFrames.length} intermediate frames`
-        );
-        logExportStep(`Prepared ${extendedFrames.length} frames so far`);
-        await new Promise((r) => setTimeout(r, 0));
-      } catch (e) {}
-    }
-    extendedFrames.push(framesBuffer[framesBuffer.length - 1]);
-    logExportStep(`Prepared total extended frames: ${extendedFrames.length}`);
-    const perFrameDelay = Math.max(
-      1,
-      Math.round(animDuration / extendedFrames.length)
-    );
-    for (let i = 0; i < extendedFrames.length; i++) {
-      try {
-        gif.addFrame(extendedFrames[i], { delay: perFrameDelay });
-      } catch (e) {}
-      // periodically update UI and yield
+
+    if (exportAbort?.aborted) throw new Error("ABORTED");
+    for (let i = 0; i < buffer.length - 1; i++) {
+      extended.push(buffer[i]);
+      if (mult > 1) extended.push(...blend(buffer[i], buffer[i + 1], mult - 1));
       if (i % 8 === 0) {
-        try {
-          updateExportProgress(
-            65 + Math.min(4, Math.round((i / extendedFrames.length) * 30)),
-            "Adding frames to GIF...",
-            `Frame ${i + 1} of ${extendedFrames.length}`
-          );
-          await new Promise((r) => setTimeout(r, 0));
-        } catch (e) {}
+        updateExportProgress(5 + (i / buffer.length) * 60, "Processing...", "");
+        await new Promise((r) => setTimeout(r, 0));
       }
-      extendedFrames[i] = null;
     }
-    for (let i = 0; i < framesBuffer.length; i++) framesBuffer[i] = null;
+    extended.push(buffer[buffer.length - 1]);
 
-    // final hold frame
-    try {
-      const finalCanvas = await captureMapFrame();
-      gif.addFrame(finalCanvas, { delay: gifConfig.FINAL_FRAME_DELAY_MS });
-    } catch (err) {
-      if (err.message === "CORS_ERROR") throw err;
+    const delay = Math.max(1, Math.round(duration / extended.length));
+    if (exportAbort?.aborted) throw new Error("ABORTED");
+    for (let i = 0; i < extended.length; i++) {
+      gif.addFrame(extended[i], { delay });
+      if (i % 8 === 0) {
+        updateExportProgress(
+          65 + (i / extended.length) * 5,
+          "Building GIF...",
+          `Frame ${i + 1}/${extended.length}`
+        );
+        await new Promise((r) => setTimeout(r, 0));
+      }
+      extended[i] = null;
     }
+    buffer.length = 0;
 
-    updateExportProgress(70, "Encoding GIF...", "This may take a moment");
+    gif.addFrame(await captureMapFrame(), { delay: cfg.FINAL_FRAME_DELAY_MS });
 
-    gif.on("progress", (progress) => {
+    if (exportAbort?.aborted) throw new Error("ABORTED");
+    updateExportProgress(70, "Encoding...", "");
+    gif.on("progress", (p) =>
       updateExportProgress(
-        70 + progress * 25,
-        "Encoding GIF...",
-        `${Math.round(progress * 100)}% complete`
-      );
-    });
-    gif.on("finished", (blob) => {
-      updateExportProgress(100, "Complete!", "Downloading...");
-      const url = URL.createObjectURL(blob);
+        70 + p * 25,
+        "Encoding...",
+        `${Math.round(p * 100)}%`
+      )
+    );
+    gif.on("finished", (b) => {
+      updateExportProgress(100, "Done!", "Downloading...");
+      const u = URL.createObjectURL(b);
       const a = document.createElement("a");
-      a.href = url;
-      a.download = `mst-animation-${Date.now()}.gif`;
+      a.href = u;
+      a.download = `mst-anim-${Date.now()}.gif`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(u);
       cleanup();
-      setTimeout(() => hideExportModal(), 1500);
+      setTimeout(hideExportModal, 1500);
     });
-
     gif.render();
-  } catch (error) {
-    console.error("Export error:", error);
+  } catch (e) {
     cleanup();
     hideExportModal();
+    if (e.message === "ABORTED") return;
     alert(
-      "Failed to export GIF: " +
-        (error && error.message ? error.message : String(error))
+      e.message === "CORS_ERROR"
+        ? "CORS error on map tiles."
+        : `Export failed: ${e.message}`
     );
   }
 }
 
 export function initExportModal() {
-  exportModal = document.getElementById("exportModal");
-  exportStatus = document.getElementById("exportStatus");
-  exportProgressBar = document.getElementById("exportProgressBar");
-  exportDetails = document.getElementById("exportDetails");
-  closeExportModalBtn = document.getElementById("closeExportModal");
-
-  if (closeExportModalBtn) {
+  initModalElements();
+  if (closeExportModalBtn)
     closeExportModalBtn.addEventListener("click", () => {
-      hideExportModal();
+      if (exportAbort) {
+        // call the shared reset routine directly to stop everything
+        try {
+          resetAnimationState();
+        } catch (e) {}
+        exportAbort.aborted = true;
+        try {
+          if (currentGif && typeof currentGif.abort === "function") currentGif.abort();
+        } catch (e) {}
+        try {
+          currentCleanup && currentCleanup();
+        } catch (e) {}
+        hideExportModal();
+      } else hideExportModal();
     });
-  }
 }

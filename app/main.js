@@ -4,6 +4,7 @@ import { createWorker, setWorkerMessageHandler } from "./worker-comm.js";
 import * as Render from "./render.js";
 import * as Anim from "./animation.js";
 import { runQueryAndRender, cacheKeyFromQuery } from "./api.js";
+import { resetAnimationState } from "./utils.js";
 import {
   hideSpinner,
   initCustomModalHandlers,
@@ -20,16 +21,6 @@ let prevDataset = "capitals";
 applyCssVars();
 initMap();
 createWorker();
-
-// centralized reset for animation state (stop + clear)
-function resetAnimationState() {
-  try {
-    Anim.stopAnimation();
-    Render.clearMSTLayers();
-    S.animIndex = 0;
-    Anim.clearCurrentEdgeAnim();
-  } catch (e) {}
-}
 
 // apply saved theme (if any) and ensure map tiles match
 try {
