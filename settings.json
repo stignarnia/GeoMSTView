@@ -28,9 +28,7 @@
   "TARGET_ZOOM_OFFSET": 7,
   "MARKER_RADIUS": 6,
   "HIGHLIGHT_RADIUS": 8,
-  "HIGHLIGHT_COLOR": "blue",
-  "HIGHLIGHT_FILL": "cyan",
-  "HIGHLIGHT_FILL_OPACITY": 0.7,
+  "HIGHLIGHT_COLOR": "red",
   "HIGHLIGHT_ANIM_DURATION": 300,
   "CANDIDATE_STYLE": { "color": "#888", "weight": 1, "opacity": 0.2 },
   "MST_STYLE": { "color": "red", "weight": 3, "opacity": 1 },
@@ -65,6 +63,9 @@
     { "name": "Cagliari", "region": "Sardinia", "lat": 39.2238, "lon": 9.1217 }
   ],
   "CSS_VARS": {
+    "font-import-url": "https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&display=swap",
+    "font-family": "'Fredoka', sans-serif",
+    "font-weights": "300 400 500 600 700",
     "bg-map": "#04101b",
     "bg-panel": "rgba(6, 18, 35, 0.92)",
     "text-light": "#e6f0ff",

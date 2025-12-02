@@ -6,6 +6,7 @@ body,
   margin: 0;
   padding: 0;
   background: var(--bg-map);
+  font-family: var(--font-family, 'Fredoka', sans-serif);
 }
 
 /* Controls panel */
@@ -413,7 +414,7 @@ body,
 .customQueryArea {
   width: 100%;
   height: var(--query-area-height);
-  font-family: monospace;
+  font-family: var(--font-family, 'Fredoka', sans-serif);
   font-size: var(--font-size-query);
   text-align: left;
   background: var(--query-area-bg);

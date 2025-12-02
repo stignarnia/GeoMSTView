@@ -35,7 +35,7 @@ export function animateStep() {
     {
       radius: S.CFG.HIGHLIGHT_RADIUS,
       color: S.CFG.HIGHLIGHT_COLOR,
-      fillColor: S.CFG.HIGHLIGHT_FILL,
+      fillColor: S.CFG.HIGHLIGHT_COLOR,
       fillOpacity: 0,
       opacity: 0,
       className: "highlight-marker",
@@ -62,7 +62,7 @@ export function animateStep() {
   (function animateHighlight(a, b) {
     const delay = Number(S.CFG.HIGHLIGHT_FADE_IN_DELAY_MS) || 0;
     const duration = Number(S.CFG.HIGHLIGHT_ANIM_DURATION) || 300;
-    const targetFill = Number(S.CFG.HIGHLIGHT_FILL_OPACITY) || 1;
+    const targetFill = 1;
     const targetOp = 1;
     const start = performance.now() + delay;
     function step() {

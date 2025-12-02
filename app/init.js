@@ -6,6 +6,23 @@ export function applyCssVars() {
     const root =
       typeof document !== "undefined" ? document.documentElement : null;
     if (!root) return;
+
+    // Inject font stylesheet from CSS_VARS.font-import-url if provided (avoid duplicates)
+    try {
+      const fontUrl = vars["font-import-url"] || vars["font_import_url"] || null;
+      if (fontUrl && typeof document !== "undefined") {
+        const existing = Array.from(
+          document.querySelectorAll('link[rel="stylesheet"]')
+        ).some((l) => l.href === fontUrl);
+        if (!existing) {
+          const link = document.createElement("link");
+          link.rel = "stylesheet";
+          link.href = fontUrl;
+          document.head.appendChild(link);
+        }
+      }
+    } catch (e) {}
+
     Object.entries(vars).forEach(([k, v]) => {
       try {
         const name = k.startsWith("--") ? k : `--${k}`;
