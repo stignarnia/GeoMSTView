@@ -101,7 +101,7 @@ setWorkerMessageHandler((msg) => {
         S.gcCacheGlobal.set(item.key, item.latlngs);
       } catch (e) {}
     });
-    S._neighbors = msg.neighbors || [];
+    S.neighbors = msg.neighbors || [];
     S.currentMST = msg.mst || [];
     try {
       Render.redrawCandidateLines();

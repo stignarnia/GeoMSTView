@@ -27,7 +27,7 @@
   "HOLD_LEVELS": 2,
   "TARGET_ZOOM_OFFSET": 7,
   "MARKER_RADIUS": 6,
-  "HIGHLIGHT_RADIUS": 8,
+  "HIGHLIGHT_RADIUS": 3,
   "HIGHLIGHT_COLOR": "red",
   "HIGHLIGHT_ANIM_DURATION": 300,
   "CANDIDATE_STYLE": { "color": "#888", "weight": 1, "opacity": 0.2 },

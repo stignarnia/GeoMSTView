@@ -178,6 +178,8 @@ export function stopAnimation() {
     cancelAnimationFrame(S.animateRafId);
     S.animateRafId = null;
   }
+  // ensure candidate redraws stay disabled when animation stops/finishes
+  S.candidateRedrawAllowed = false;
 }
 
 export function clearCurrentEdgeAnim() {
@@ -187,6 +189,8 @@ export function clearCurrentEdgeAnim() {
 export function startAnimation() {
   if (S.animateRafId) return;
   S.animateLastStepTs = performance.now();
+  // disable candidate redraws while animation is running (and after)
+  S.candidateRedrawAllowed = false;
   function loop(ts) {
     if (!S.animateRafId) return;
     if (S.animIndex >= S.currentMST.length && !currentEdgeAnim) {

@@ -30,5 +30,6 @@ export const S = {
   gcCacheGlobal: new Map(),
   lastCitiesKey: null,
   computeWorker: null,
-  _neighbors: [],
+  neighbors: [],
+  candidateRedrawAllowed: true,
 };

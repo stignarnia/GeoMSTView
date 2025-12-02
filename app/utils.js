@@ -13,6 +13,8 @@ export const resetAnimationState = () => {
   Render.clearMSTLayers();
   S.animIndex = 0;
   Anim.clearCurrentEdgeAnim();
+  // re-enable candidate redraws after a central reset
+  S.candidateRedrawAllowed = true;
 };
 
 export const computeCitiesKey = (list) => {

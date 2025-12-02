@@ -85,11 +85,8 @@ export function clearMSTLayers() {
 }
 
 export function redrawCandidateLines() {
-  try {
-    S.candidateLayerGroup.clearLayers();
-  } catch (e) {}
-  S.candidateLines.length = 0;
   if (!S.currentCities || !S.currentCities.length) return;
+  if (!S.candidateRedrawAllowed) return;
   const n = S.currentCities.length;
   const minZ =
     typeof S.map.getMinZoom === "function" ? S.map.getMinZoom() ?? 0 : 0;
@@ -109,7 +106,15 @@ export function redrawCandidateLines() {
     kNearest = S.CFG.K_MIN + Math.round(frac * (S.CFG.K_MAX - S.CFG.K_MIN));
     kNearest = Math.max(S.CFG.K_MIN, Math.min(S.CFG.K_MAX, kNearest));
   }
-  const neighbors = S._neighbors || [];
+
+  // avoid unnecessary redraws on zooms that don't change kNearest
+  if (S._lastKNearest === kNearest) return;
+
+  try {
+    S.candidateLayerGroup.clearLayers();
+  } catch (e) {}
+  S.candidateLines.length = 0;
+  const neighbors = S.neighbors || [];
   if (!Array.isArray(neighbors) || neighbors.length !== n) return;
   for (let i = 0; i < n; i++) {
     const top = neighbors[i].slice(0, kNearest);
@@ -136,6 +141,9 @@ export function redrawCandidateLines() {
       addWrappedPolyline(latlngs, S.CFG.CANDIDATE_STYLE, S.candidateLines);
     });
   }
+
+  // remember last computed kNearest to skip redundant redraws
+  S._lastKNearest = kNearest;
 }
 
 export async function renderCities(list, postCompute = true) {
