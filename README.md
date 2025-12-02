@@ -23,11 +23,13 @@ The GIF export feature allows you to download the MST animation as an animated G
 - Export uses the current map view (center and zoom level)
 
 **Note about CORS:** Some tile servers may block cross-origin canvas access, which can prevent GIF export. If you encounter CORS errors:
+
 - Try using the light theme (which uses OpenStreetMap tiles)
 - The default dark theme uses Carto tiles which may have CORS restrictions
 - For production use, consider implementing a server-side export solution
 
 Export settings can be configured in `settings.json` under the `GIF_EXPORT` key:
+
 - `WORKERS`: Number of worker threads for GIF encoding (default: 2)
 - `QUALITY`: GIF quality (1-30, lower is better, default: 10)
 - `INITIAL_FRAME_DELAY_MS`: Delay for the first frame (default: 500ms)

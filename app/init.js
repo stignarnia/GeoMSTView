@@ -9,7 +9,8 @@ export function applyCssVars() {
 
     // Inject font stylesheet from CSS_VARS.font-import-url if provided (avoid duplicates)
     try {
-      const fontUrl = vars["font-import-url"] || vars["font_import_url"] || null;
+      const fontUrl =
+        vars["font-import-url"] || vars["font_import_url"] || null;
       if (fontUrl && typeof document !== "undefined") {
         const existing = Array.from(
           document.querySelectorAll('link[rel="stylesheet"]')

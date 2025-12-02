@@ -140,7 +140,8 @@ export async function exportAnimationAsGif() {
     if (workerUrl) URL.revokeObjectURL(workerUrl);
     // release gif/abort state (do not re-create animation here — use central reset)
     try {
-      if (currentGif && typeof currentGif.abort === "function") currentGif.abort();
+      if (currentGif && typeof currentGif.abort === "function")
+        currentGif.abort();
     } catch (e) {}
     exportAbort = null;
     try {
@@ -349,7 +350,8 @@ export function initExportModal() {
         } catch (e) {}
         exportAbort.aborted = true;
         try {
-          if (currentGif && typeof currentGif.abort === "function") currentGif.abort();
+          if (currentGif && typeof currentGif.abort === "function")
+            currentGif.abort();
         } catch (e) {}
         try {
           currentCleanup && currentCleanup();

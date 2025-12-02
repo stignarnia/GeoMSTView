@@ -21,6 +21,9 @@
       "purpose": "maskable"
     }
   ],
-  "categories": ["education", "utilities"],
+  "categories": [
+    "education",
+    "utilities"
+  ],
   "screenshots": []
 }
