@@ -1,229 +1,148 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>MST Visualization — OpenStreetMap data</title>
 
-    <!-- PWA Meta Tags -->
-    <meta
-      name="description"
-      content="Interactive Minimum Spanning Tree visualization over OpenStreetMap data using Prim and Kruskal algorithms"
-    />
-    <meta name="theme-color" content="#04101b" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta
-      name="apple-mobile-web-app-status-bar-style"
-      content="black-translucent"
-    />
-    <meta name="apple-mobile-web-app-title" content="GeoMSTView" />
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MST Visualization — OpenStreetMap data</title>
 
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json" />
+  <!-- PWA Meta Tags -->
+  <meta name="description"
+    content="Interactive Minimum Spanning Tree visualization over OpenStreetMap data using Prim and Kruskal algorithms" />
+  <meta name="theme-color" content="#04101b" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="GeoMSTView" />
 
-    <!-- Icons -->
-    <link rel="icon" type="image/png" href="favicon.png" />
-    <link rel="apple-touch-icon" href="favicon.png" />
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json" />
 
-    <!-- Stylesheets -->
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    />
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <div id="map"></div>
-    <div class="controls">
-      <button
-        id="collapseToggle"
-        class="collapseToggle"
-        title="Collapse panel"
-        aria-label="Collapse panel"
-      >
-        <span class="collapseArrow">▲</span>
+  <!-- Icons -->
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="apple-touch-icon" href="favicon.png" />
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <div id="map"></div>
+  <div class="controls">
+    <button id="collapseToggle" class="collapseToggle" title="Collapse panel" aria-label="Collapse panel">
+      <span class="collapseArrow">▲</span>
+    </button>
+    <div id="titleText"></div>
+    <div class="datasetRow">
+      <label for="datasetSelect">Dataset:</label>
+      <select id="datasetSelect">
+        <option value="capitals">Region capitals (default)</option>
+        <option value="preset">
+          Cities with population &gt; 50k (from OSM)
+        </option>
+        <option value="custom">Custom Overpass query...</option>
+      </select>
+      <button id="editCustom" title="Edit custom query" class="modalBtn btnRevert" aria-label="Edit">
+        ✎
       </button>
-      <div id="titleText"></div>
-      <div class="datasetRow">
-        <label for="datasetSelect">Dataset:</label>
-        <select id="datasetSelect">
-          <option value="capitals">Region capitals (default)</option>
-          <option value="preset">
-            Cities with population &gt; 50k (from OSM)
-          </option>
-          <option value="custom">Custom Overpass query...</option>
-        </select>
-        <button
-          id="editCustom"
-          title="Edit custom query"
-          class="modalBtn btnRevert"
-          aria-label="Edit"
-        >
-          ✎
-        </button>
-      </div>
-      <div
-        id="spinner"
-        class="spinner"
-        aria-hidden="true"
-        title="loading"
-      ></div>
-      <div id="spinnerText" class="spinnerText" aria-live="polite"></div>
-      <div class="datasetRow">
-        <label for="algoSelect">Algorithm:</label>
-        <select id="algoSelect">
-          <option value="prim">Prim (default)</option>
-          <option value="kruskal">Kruskal (slower for big datasets)</option>
-        </select>
-        <div class="algoSpacer"></div>
-      </div>
-      <div class="datasetRow">
-        <label for="endpointInput">API Server:</label>
-        <input id="endpointInput" type="text" />
-        <button
-          id="resetEndpoint"
-          title="Reset to default"
-          class="modalBtn btnRevert"
-          aria-label="Reset endpoint"
-        >
-          ⤺
-        </button>
-      </div>
-      <div class="speedRow">
-        <label for="speedRange">Animation speed:</label>
-        <input id="speedRange" type="range" />
-        <span id="speedLabel"></span>
-      </div>
-      <div class="btnRow">
-        <button
-          id="start"
-          class="modalBtn btnOk"
-          title="Start animation"
-          aria-label="Start"
-        >
-          ▶
-        </button>
-        <button
-          id="themeToggle"
-          class="modalBtn"
-          title="Toggle map theme"
-          aria-label="Toggle map theme"
-        >
-          <span class="themeIcon">☀</span>
-        </button>
-        <button
-          id="reset"
-          class="modalBtn btnRevert"
-          title="Reset"
-          aria-label="Reset"
-        >
-          ↺
-        </button>
-        <button
-          id="exportGif"
-          class="modalBtn"
-          title="Export animation as GIF"
-          aria-label="Export GIF"
-        >
-          📹
-        </button>
-        <button
-          id="invalidateCache"
-          class="modalBtn btnClose"
-          title="Invalidate cache"
-          aria-label="Invalidate cache"
-        >
-          🗑
-        </button>
-        <a
-          class="modalBtn iconOnly"
-          href="https://github.com/stignarnia/GeoMSTView"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Open project on GitHub"
-        >
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path
-              fill="currentColor"
-              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
-            />
-          </svg>
-        </a>
-      </div>
-
-      <div id="mstTotal">MST total length: — km</div>
-      <p class="description">
-        A Minimum Spanning Tree (MST) is a subset of edges that connects all
-        vertices in a graph without cycles and with the minimum possible total
-        edge weight. Here the edge weight is the Haversine distance between
-        cities.
-      </p>
     </div>
-    <!-- Custom query modal -->
-    <div
-      id="customModal"
-      role="dialog"
-      aria-modal="true"
-      aria-hidden="true"
-      aria-labelledby="customModalTitle"
-      tabindex="-1"
-    >
-      <div class="modalContent">
-        <div class="modalHeader">
-          <strong id="customModalTitle">Custom Overpass QL</strong>
-          <div class="modalButtons">
-            <button id="okTop" class="modalBtn btnOk" title="Run query">
-              OK
-            </button>
-            <button
-              id="revertQuery"
-              class="modalBtn btnRevert"
-              title="Revert to default"
-            >
-              ⤺
-            </button>
-            <button id="closeModal" class="modalBtn btnClose" title="Close">
-              ✕
-            </button>
-          </div>
-        </div>
-        <textarea id="customQuery" class="customQueryArea"></textarea>
-      </div>
+    <div id="spinner" class="spinner" aria-hidden="true" title="loading"></div>
+    <div id="spinnerText" class="spinnerText" aria-live="polite"></div>
+    <div class="datasetRow">
+      <label for="algoSelect">Algorithm:</label>
+      <select id="algoSelect">
+        <option value="prim">Prim (default)</option>
+        <option value="kruskal">Kruskal (slower for big datasets)</option>
+      </select>
+      <div class="algoSpacer"></div>
+    </div>
+    <div class="datasetRow">
+      <label for="endpointInput">API Server:</label>
+      <input id="endpointInput" type="text" />
+      <button id="resetEndpoint" title="Reset to default" class="modalBtn btnRevert" aria-label="Reset endpoint">
+        ⤺
+      </button>
+    </div>
+    <div class="speedRow">
+      <label for="speedRange">Animation speed:</label>
+      <input id="speedRange" type="range" />
+      <span id="speedLabel"></span>
+    </div>
+    <div class="btnRow">
+      <button id="start" class="modalBtn btnOk" title="Start animation" aria-label="Start">
+        ▶
+      </button>
+      <button id="themeToggle" class="modalBtn" title="Toggle map theme" aria-label="Toggle map theme">
+        <span class="themeIcon">☀</span>
+      </button>
+      <button id="reset" class="modalBtn btnRevert" title="Reset" aria-label="Reset">
+        ↺
+      </button>
+      <button id="exportGif" class="modalBtn" title="Export animation as GIF" aria-label="Export GIF">
+        📹
+      </button>
+      <button id="invalidateCache" class="modalBtn btnClose" title="Invalidate cache" aria-label="Invalidate cache">
+        🗑
+      </button>
+      <a class="modalBtn iconOnly" href="https://github.com/stignarnia/GeoMSTView" target="_blank"
+        rel="noopener noreferrer" aria-label="Open project on GitHub">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path fill="currentColor"
+            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+        </svg>
+      </a>
     </div>
 
-    <!-- Export GIF modal -->
-    <div
-      id="exportModal"
-      role="dialog"
-      aria-modal="true"
-      aria-hidden="true"
-      aria-labelledby="exportModalTitle"
-      tabindex="-1"
-    >
-      <div class="modalContent exportModalContent">
-        <div class="modalHeader">
-          <strong id="exportModalTitle">Export Animation as GIF</strong>
-          <div class="modalButtons">
-            <button
-              id="closeExportModal"
-              class="modalBtn btnClose"
-              title="Close"
-            >
-              ✕
-            </button>
-          </div>
+    <div id="mstTotal">MST total length: — km</div>
+    <p class="description">
+      A Minimum Spanning Tree (MST) is a subset of edges that connects all
+      vertices in a graph without cycles and with the minimum possible total
+      edge weight. Here the edge weight is the Haversine distance between
+      cities.
+    </p>
+  </div>
+  <!-- Custom query modal -->
+  <div id="customModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="customModalTitle"
+    tabindex="-1">
+    <div class="modalContent">
+      <div class="modalHeader">
+        <strong id="customModalTitle">Custom Overpass QL</strong>
+        <div class="modalButtons">
+          <button id="okTop" class="modalBtn btnOk" title="Run query">
+            OK
+          </button>
+          <button id="revertQuery" class="modalBtn btnRevert" title="Revert to default">
+            ⤺
+          </button>
+          <button id="closeModal" class="modalBtn btnClose" title="Close">
+            ✕
+          </button>
         </div>
-        <div id="exportStatus" class="exportStatus">Preparing export...</div>
-        <div class="exportProgressContainer">
-          <div id="exportProgressBar" class="exportProgressBar"></div>
-        </div>
-        <div id="exportDetails" class="exportDetails"></div>
       </div>
+      <textarea id="customQuery" class="customQueryArea"></textarea>
     </div>
+  </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    <script type="module" src="app/main.js"></script>
-  </body>
+  <!-- Export GIF modal -->
+  <div id="exportModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="exportModalTitle"
+    tabindex="-1">
+    <div class="modalContent exportModalContent">
+      <div class="modalHeader">
+        <strong id="exportModalTitle">Export Animation as GIF</strong>
+        <div class="modalButtons">
+          <button id="closeExportModal" class="modalBtn btnClose" title="Close">
+            ✕
+          </button>
+        </div>
+      </div>
+      <div id="exportStatus" class="exportStatus">Preparing export...</div>
+      <div class="exportProgressContainer">
+        <div id="exportProgressBar" class="exportProgressBar"></div>
+      </div>
+      <div id="exportDetails" class="exportDetails"></div>
+    </div>
+  </div>
+
+  <script type="module" src="app/main.js"></script>
+</body>
+
 </html>

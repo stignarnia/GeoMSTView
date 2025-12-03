@@ -19,7 +19,7 @@ function addWrappedPolyline(latlngs, options, collectArray) {
         polyOpts.renderer = S.mstCanvasRenderer;
         polyOpts.pane = "mstPane";
       }
-    } catch (e) {}
+    } catch (e) { }
     return polyOpts;
   };
 
@@ -33,8 +33,8 @@ function addWrappedPolyline(latlngs, options, collectArray) {
         options === S.CFG.CANDIDATE_STYLE
           ? S.candidateLayerGroup
           : options === S.CFG.MST_STYLE
-          ? S.mstLayerGroup
-          : S.map;
+            ? S.mstLayerGroup
+            : S.map;
       const p = L.polyline(seg, polyOpts).addTo(parent);
       parts.push(p);
       if (Array.isArray(collectArray)) collectArray.push(p);
@@ -49,8 +49,8 @@ function addWrappedPolyline(latlngs, options, collectArray) {
       options === S.CFG.CANDIDATE_STYLE
         ? S.candidateLayerGroup
         : options === S.CFG.MST_STYLE
-        ? S.mstLayerGroup
-        : S.map;
+          ? S.mstLayerGroup
+          : S.map;
     const p = L.polyline(seg, polyOpts).addTo(parent);
     parts.push(p);
     if (Array.isArray(collectArray)) collectArray.push(p);
@@ -63,11 +63,11 @@ export function clearLayers() {
   S.markers.length = 0;
   try {
     S.candidateLayerGroup.clearLayers();
-  } catch (e) {}
+  } catch (e) { }
   S.candidateLines.length = 0;
   try {
     S.mstLayerGroup.clearLayers();
-  } catch (e) {}
+  } catch (e) { }
   S.mstLines.length = 0;
   S.highlightMarkers.forEach((h) => S.map.removeLayer(h));
   S.highlightMarkers.length = 0;
@@ -78,7 +78,7 @@ export function clearLayers() {
 export function clearMSTLayers() {
   try {
     S.mstLayerGroup.clearLayers();
-  } catch (e) {}
+  } catch (e) { }
   S.mstLines.length = 0;
   S.highlightMarkers.forEach((h) => S.map.removeLayer(h));
   S.highlightMarkers.length = 0;
@@ -112,7 +112,7 @@ export function redrawCandidateLines() {
 
   try {
     S.candidateLayerGroup.clearLayers();
-  } catch (e) {}
+  } catch (e) { }
   S.candidateLines.length = 0;
   const neighbors = S.neighbors || [];
   if (!Array.isArray(neighbors) || neighbors.length !== n) return;
@@ -201,7 +201,7 @@ export async function renderCities(list, postCompute = true) {
   if (postCompute) {
     try {
       showSpinner(undefined, S.CFG.SPINNER_TEXT);
-    } catch (e) {}
+    } catch (e) { }
     postComputeMessage({
       type: "compute",
       cities: S.currentCities,

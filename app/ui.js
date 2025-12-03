@@ -30,7 +30,7 @@ export function loadSavedQuery(storageKey, defaultQuery = getDefaultQuery()) {
   const def = dedent(defaultQuery);
   try {
     localStorage.setItem(storageKey, def);
-  } catch (e) {}
+  } catch (e) { }
   return def;
 }
 
@@ -151,7 +151,7 @@ export function initCustomModalHandlers({ onOk = null, onClose = null } = {}) {
     textarea.addEventListener("input", (e) => {
       try {
         localStorage.setItem(S.CUSTOM_QUERY_KEY, e.target.value);
-      } catch (e) {}
+      } catch (e) { }
     });
   if (revertBtn)
     revertBtn.addEventListener("click", () => {

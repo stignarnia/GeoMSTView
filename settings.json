@@ -1,5 +1,8 @@
 {
-  "MAP_DEFAULT_CENTER": [41.9, 12.5],
+  "MAP_DEFAULT_CENTER": [
+    41.9,
+    12.5
+  ],
   "MAP_DEFAULT_ZOOM": 6,
   "EDGE_GROWTH_DURATION_FACTOR": 0.8,
   "HIGHLIGHT_FADE_IN_DELAY_MS": 50,
@@ -15,7 +18,12 @@
   "TITLE_TEXT": "MST Visualization — OpenStreetMap geographic data (Haversine)",
   "WRAP_LON_THRESHOLD": 180,
   "SPINNER_TEXT": "Downloading data…",
-  "SPEED_RANGE": { "min": 1, "max": 1000, "step": 1, "default": 525 },
+  "SPEED_RANGE": {
+    "min": 1,
+    "max": 1000,
+    "step": 1,
+    "default": 525
+  },
   "OVERPASS_ENDPOINT": "https://overpass-api.de/api/interpreter",
   "CACHE_TTL_MS": 86400000,
   "DISTANCE_RADIUS_KM": 6371,
@@ -30,8 +38,16 @@
   "HIGHLIGHT_RADIUS": 3,
   "HIGHLIGHT_COLOR": "red",
   "HIGHLIGHT_ANIM_DURATION": 300,
-  "CANDIDATE_STYLE": { "color": "#888", "weight": 1, "opacity": 0.2 },
-  "MST_STYLE": { "color": "red", "weight": 3, "opacity": 1 },
+  "CANDIDATE_STYLE": {
+    "color": "#888",
+    "weight": 1,
+    "opacity": 0.2
+  },
+  "MST_STYLE": {
+    "color": "red",
+    "weight": 3,
+    "opacity": 1
+  },
   "GIF_EXPORT": {
     "WORKERS": 2,
     "QUALITY": 10,
@@ -42,17 +58,42 @@
   },
   "DEFAULT_CITIES_QUERY": "[out:json][timeout:60];\n            area[\"ISO3166-1\"=\"IT\"]->.a;\n            (\n              node[\"place\"~\"city|town\"][\"population\"~\"^([5-9][0-9]{4}|[1-9][0-9]{5,})$\"](area.a);\n              way[\"place\"~\"city|town\"][\"population\"~\"^([5-9][0-9]{4}|[1-9][0-9]{5,})$\"](area.a);\n              relation[\"place\"~\"city|town\"][\"population\"~\"^([5-9][0-9]{4}|[1-9][0-9]{5,})$\"](area.a);\n            );\n            out center tags;",
   "CAPITALS": [
-    { "name": "Aosta", "region": "Aosta Valley", "lat": 45.737, "lon": 7.315 },
-    { "name": "Turin", "region": "Piedmont", "lat": 45.0703, "lon": 7.6869 },
-    { "name": "Genoa", "region": "Liguria", "lat": 44.4056, "lon": 8.9463 },
-    { "name": "Milan", "region": "Lombardy", "lat": 45.4642, "lon": 9.19 },
+    {
+      "name": "Aosta",
+      "region": "Aosta Valley",
+      "lat": 45.737,
+      "lon": 7.315
+    },
+    {
+      "name": "Turin",
+      "region": "Piedmont",
+      "lat": 45.0703,
+      "lon": 7.6869
+    },
+    {
+      "name": "Genoa",
+      "region": "Liguria",
+      "lat": 44.4056,
+      "lon": 8.9463
+    },
+    {
+      "name": "Milan",
+      "region": "Lombardy",
+      "lat": 45.4642,
+      "lon": 9.19
+    },
     {
       "name": "Trento",
       "region": "Trentino-Alto Adige",
       "lat": 46.0667,
       "lon": 11.1167
     },
-    { "name": "Venice", "region": "Veneto", "lat": 45.4386, "lon": 12.3267 },
+    {
+      "name": "Venice",
+      "region": "Veneto",
+      "lat": 45.4386,
+      "lon": 12.3267
+    },
     {
       "name": "Trieste",
       "region": "Friuli-Venezia Giulia",
@@ -65,27 +106,72 @@
       "lat": 44.4949,
       "lon": 11.3426
     },
-    { "name": "Florence", "region": "Tuscany", "lat": 43.7711, "lon": 11.2486 },
-    { "name": "Perugia", "region": "Umbria", "lat": 43.1107, "lon": 12.3908 },
-    { "name": "Ancona", "region": "Marche", "lat": 43.6158, "lon": 13.5189 },
-    { "name": "Rome", "region": "Lazio", "lat": 41.9028, "lon": 12.4964 },
-    { "name": "L'Aquila", "region": "Abruzzo", "lat": 42.3498, "lon": 13.3995 },
-    { "name": "Naples", "region": "Campania", "lat": 40.8518, "lon": 14.2681 },
+    {
+      "name": "Florence",
+      "region": "Tuscany",
+      "lat": 43.7711,
+      "lon": 11.2486
+    },
+    {
+      "name": "Perugia",
+      "region": "Umbria",
+      "lat": 43.1107,
+      "lon": 12.3908
+    },
+    {
+      "name": "Ancona",
+      "region": "Marche",
+      "lat": 43.6158,
+      "lon": 13.5189
+    },
+    {
+      "name": "Rome",
+      "region": "Lazio",
+      "lat": 41.9028,
+      "lon": 12.4964
+    },
+    {
+      "name": "L'Aquila",
+      "region": "Abruzzo",
+      "lat": 42.3498,
+      "lon": 13.3995
+    },
+    {
+      "name": "Naples",
+      "region": "Campania",
+      "lat": 40.8518,
+      "lon": 14.2681
+    },
     {
       "name": "Catanzaro",
       "region": "Calabria",
       "lat": 38.905,
       "lon": 16.5944
     },
-    { "name": "Bari", "region": "Puglia", "lat": 41.1256, "lon": 16.8668 },
+    {
+      "name": "Bari",
+      "region": "Puglia",
+      "lat": 41.1256,
+      "lon": 16.8668
+    },
     {
       "name": "Potenza",
       "region": "Basilicata",
       "lat": 40.6394,
       "lon": 15.805
     },
-    { "name": "Palermo", "region": "Sicily", "lat": 38.1157, "lon": 13.3615 },
-    { "name": "Cagliari", "region": "Sardinia", "lat": 39.2238, "lon": 9.1217 }
+    {
+      "name": "Palermo",
+      "region": "Sicily",
+      "lat": 38.1157,
+      "lon": 13.3615
+    },
+    {
+      "name": "Cagliari",
+      "region": "Sardinia",
+      "lat": 39.2238,
+      "lon": 9.1217
+    }
   ],
   "CSS_VARS": {
     "font-import-url": "https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&display=swap",

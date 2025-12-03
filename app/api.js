@@ -16,10 +16,10 @@ export async function fetchOverpass(query, cacheKey) {
         else
           try {
             localStorage.removeItem(cacheKey);
-          } catch (e) {}
+          } catch (e) { }
       }
     }
-  } catch (e) {}
+  } catch (e) { }
   try {
     showSpinner(undefined, S.CFG.SPINNER_TEXT);
     const resp = await fetch(endpoint, {
@@ -50,7 +50,7 @@ export async function fetchOverpass(query, cacheKey) {
       .filter((c) => Number.isFinite(c.lat) && Number.isFinite(c.lon));
     try {
       localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), items }));
-    } catch (e) {}
+    } catch (e) { }
     return items;
   } catch (err) {
     let statusCode = err.status || "Network";

@@ -1,3 +1,6 @@
+import L from "leaflet";
+// Vite requires importing Leaflet's CSS for the map to render correctly
+import "leaflet/dist/leaflet.css";
 import { S } from "./state.js";
 
 export function applyCssVars() {
@@ -22,15 +25,15 @@ export function applyCssVars() {
           document.head.appendChild(link);
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     Object.entries(vars).forEach(([k, v]) => {
       try {
         const name = k.startsWith("--") ? k : `--${k}`;
         root.style.setProperty(name, v);
-      } catch (e) {}
+      } catch (e) { }
     });
-  } catch (e) {}
+  } catch (e) { }
 }
 
 export function initMap() {
@@ -43,7 +46,7 @@ export function initMap() {
         S.CFG.SPEED_RANGE.default;
       S.animationDelay = S.CFG.ANIMATION_DELAY_DEFAULT;
     }
-  } catch (e) {}
+  } catch (e) { }
 
   S.map = L.map("map", { zoomControl: false }).setView(
     S.CFG.MAP_DEFAULT_CENTER,
@@ -56,9 +59,12 @@ export function initMap() {
   S.map.createPane("highlightPane");
   S.map.getPane("highlightPane").style.zIndex = 650;
 
+  // ⚠️ CRITICAL CHANGE: crossOrigin: "anonymous"
+  // This allows html2canvas to screenshot the map tiles without Taint/CORS errors
   S.baseTileLayer = L.tileLayer(S.CFG.TILE_URL, {
     maxZoom: S.CFG.TILE_MAX_ZOOM,
     attribution: S.CFG.TILE_ATTRIBUTION,
+    crossOrigin: "anonymous",
   }).addTo(S.map);
 
   S.candidateCanvasRenderer = L.canvas({ padding: 0.5 });
@@ -81,10 +87,13 @@ export function applyTheme(theme) {
         : S.CFG.TILE_ATTRIBUTION;
     try {
       S.map.removeLayer(S.baseTileLayer);
-    } catch (e) {}
+    } catch (e) { }
+
+    // ⚠️ CRITICAL CHANGE: crossOrigin: "anonymous" here as well
     S.baseTileLayer = L.tileLayer(url, {
       maxZoom: S.CFG.TILE_MAX_ZOOM,
       attribution: attr,
+      crossOrigin: "anonymous",
     }).addTo(S.map);
-  } catch (e) {}
+  } catch (e) { }
 }

@@ -29,7 +29,7 @@ try {
   let savedTheme = null;
   try {
     savedTheme = localStorage.getItem("theme");
-  } catch (e) {}
+  } catch (e) { }
   if (savedTheme === "light" || savedTheme === "dark") {
     S.currentTheme = savedTheme;
   } else {
@@ -80,32 +80,32 @@ try {
       S.currentTheme = next;
       try {
         localStorage.setItem("theme", next);
-      } catch (e) {}
+      } catch (e) { }
       applyTheme(next);
       animateIconSwap(themeIcon, iconForAction(next));
     });
-} catch (e) {}
+} catch (e) { }
 
 setWorkerMessageHandler((msg) => {
   if (msg.type === "result") {
     try {
       hideSpinner();
-    } catch (e) {}
+    } catch (e) { }
     (msg.candidates || []).forEach((item) => {
       try {
         S.gcCacheGlobal.set(item.key, item.latlngs);
-      } catch (e) {}
+      } catch (e) { }
     });
     (msg.mstLatlngs || []).forEach((item) => {
       try {
         S.gcCacheGlobal.set(item.key, item.latlngs);
-      } catch (e) {}
+      } catch (e) { }
     });
     S.neighbors = msg.neighbors || [];
     S.currentMST = msg.mst || [];
     try {
       Render.redrawCandidateLines();
-    } catch (e) {}
+    } catch (e) { }
     const total = (S.currentMST || []).reduce((s, e) => s + e.w, 0).toFixed(2);
     const totalEl = document.getElementById("mstTotal");
     if (totalEl) totalEl.textContent = "MST total length: " + total + " km";
@@ -152,10 +152,10 @@ initCustomModalHandlers({
       if (reason === "cancel") {
         try {
           document.getElementById("datasetSelect").value = prevDataset;
-        } catch (e) {}
+        } catch (e) { }
       }
       updateEditButton();
-    } catch (e) {}
+    } catch (e) { }
   },
 });
 // Collapse toggle wiring
@@ -172,7 +172,7 @@ try {
       );
     });
   }
-} catch (e) {}
+} catch (e) { }
 
 // Invalidate cache button wiring
 try {
@@ -203,17 +203,17 @@ try {
         const key = await cacheKeyFromQuery(query);
         try {
           localStorage.removeItem(key);
-        } catch (e) {}
+        } catch (e) { }
         try {
           S.gcCacheGlobal.clear();
-        } catch (e) {}
+        } catch (e) { }
         alert("Cache invalidated for current query.");
       } catch (e) {
         console.error(e);
         alert("Error invalidating cache");
       }
     });
-} catch (e) {}
+} catch (e) { }
 
 document.getElementById("editCustom").addEventListener("click", () => {
   prevDataset = document.getElementById("datasetSelect").value;
@@ -258,10 +258,10 @@ try {
         // re-run compute/render for the currently loaded cities so the
         // change in algorithm takes effect immediately
         Render.renderCities(S.currentCities);
-      } catch (err) {}
+      } catch (err) { }
     });
   }
-} catch (e) {}
+} catch (e) { }
 
 // Endpoint input wiring
 try {
@@ -278,27 +278,27 @@ try {
       if (endpointInput) endpointInput.value = DEFAULT_ENDPOINT;
       S.CFG.OVERPASS_ENDPOINT = DEFAULT_ENDPOINT;
     });
-} catch (e) {}
+} catch (e) { }
 
 // initialize
 Render.renderCities(S.CFG.CAPITALS);
 try {
   updateEditButton();
-} catch (e) {}
+} catch (e) { }
 try {
   document.getElementById("titleText").textContent = S.CFG.TITLE_TEXT;
-} catch (e) {}
+} catch (e) { }
 try {
   document.getElementById("spinnerText").textContent = S.CFG.SPINNER_TEXT;
-} catch (e) {}
+} catch (e) { }
 try {
   document.title = S.CFG.TITLE_TEXT;
-} catch (e) {}
+} catch (e) { }
 
 // Register service worker from the module (resolves SW path relative to this file)
 try {
   registerServiceWorker();
-} catch (e) {}
+} catch (e) { }
 
 // Wire animation speed slider (read values only from settings)
 try {
@@ -321,7 +321,7 @@ try {
       } else if (typeof speedCfg.default !== "undefined") {
         speedRange.value = speedCfg.default;
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const applyValue = (val) => {
       try {
@@ -336,16 +336,16 @@ try {
     // initialize from state
     try {
       if (typeof speedRange.value !== "undefined") applyValue(speedRange.value);
-    } catch (e) {}
+    } catch (e) { }
 
     speedRange.addEventListener("input", (e) => {
       const v = e.target.value;
       applyValue(v);
     });
   }
-} catch (e) {}
+} catch (e) { }
 
 // Initialize export modal
 try {
   initExportModal();
-} catch (e) {}
+} catch (e) { }

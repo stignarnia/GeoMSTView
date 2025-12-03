@@ -73,7 +73,7 @@ export function animateStep() {
       try {
         a.setStyle({ fillOpacity: fill, opacity: op });
         b.setStyle({ fillOpacity: fill, opacity: op });
-      } catch (e) {}
+      } catch (e) { }
       if (t < 1) requestAnimationFrame(step);
     }
     requestAnimationFrame(step);
@@ -113,7 +113,7 @@ export function updateEdgeAnimation(timestamp) {
       try {
         polyOpts.renderer = S.mstCanvasRenderer;
         polyOpts.pane = "mstPane";
-      } catch (e) {}
+      } catch (e) { }
       const parent = S.mstLayerGroup || S.map;
       const existing =
         currentEdgeAnim.polylineParts &&
@@ -121,14 +121,14 @@ export function updateEdgeAnimation(timestamp) {
       if (existing && typeof existing.setLatLngs === "function") {
         try {
           existing.setLatLngs(latlngSegment);
-        } catch (e) {}
+        } catch (e) { }
         newParts.push(existing);
       } else {
         try {
           const p = L.polyline(latlngSegment, polyOpts).addTo(parent);
           newParts.push(p);
           if (Array.isArray(S.mstLines)) S.mstLines.push(p);
-        } catch (e) {}
+        } catch (e) { }
       }
       partIndex++;
     };
@@ -157,11 +157,11 @@ export function updateEdgeAnimation(timestamp) {
       const old = currentEdgeAnim.polylineParts[i];
       try {
         if (old && old.remove) old.remove();
-      } catch (e) {}
+      } catch (e) { }
       try {
         const idx = S.mstLines.indexOf(old);
         if (idx >= 0) S.mstLines.splice(idx, 1);
-      } catch (e) {}
+      } catch (e) { }
     }
   }
 
@@ -207,7 +207,7 @@ export function startAnimation() {
     if (ts - S.animateLastStepTs >= S.animationDelay) {
       try {
         animateStep();
-      } catch (e) {}
+      } catch (e) { }
       S.animateLastStepTs = ts;
     }
     S.animateRafId = requestAnimationFrame(loop);
