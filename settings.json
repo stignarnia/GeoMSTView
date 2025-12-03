@@ -19,7 +19,7 @@
   "WRAP_LON_THRESHOLD": 180,
   "SPINNER_TEXT": "Downloading data…",
   "SPEED_RANGE": {
-    "min": 1,
+    "min": 50,
     "max": 1000,
     "step": 1,
     "default": 525
