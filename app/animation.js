@@ -1,5 +1,5 @@
 import { S } from "./state.js";
-import { gcKey, greatCirclePoints } from "./utils.js";
+import { gcKey, greatCirclePoints } from "./shared.js";
 
 export let currentEdgeAnim = null;
 

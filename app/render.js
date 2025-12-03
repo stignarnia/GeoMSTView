@@ -1,5 +1,6 @@
 import { S } from "./state.js";
-import { gcKey, greatCirclePoints, computeCitiesKey } from "./utils.js";
+import { gcKey, greatCirclePoints } from "./shared.js";
+import { computeCitiesKey } from "./utils.js";
 import { postComputeMessage } from "./worker-comm.js";
 import { showSpinner } from "./ui.js";
 

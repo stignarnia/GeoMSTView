@@ -1,4 +1,5 @@
-import { dedent, getRecord, putRecord, removeRecord } from "./utils.js";
+import { dedent } from "./shared.js";
+import { getRecord, putRecord, removeRecord } from "./utils.js";
 import { S } from "./state.js";
 
 let closeCb = null;
