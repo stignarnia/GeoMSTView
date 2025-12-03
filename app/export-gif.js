@@ -286,21 +286,39 @@ export async function exportAnimationAsGif() {
 
     Anim.startAnimation();
 
-    const maxFrames = Number(cfg.MAX_CAPTURE_FRAMES ?? 200);
-    const buffer = [];
     const start = performance.now();
 
-    buffer.push(firstFrame);
+    // Helper: convert canvas to PNG Blob and try to free the canvas backing store
+    const canvasToBlob = (canvas) =>
+      new Promise((resolve) => {
+        canvas.toBlob((blob) => {
+          try {
+            canvas.width = 0;
+            canvas.height = 0;
+          } catch (e) {}
+          resolve(blob);
+        }, "image/png");
+      });
 
-    while (S.animateRafId && buffer.length < maxFrames) {
+    // Capture all frames as compressed Blobs (less memory than keeping raw canvases)
+    const frameBlobs = [];
+
+    // push first frame
+    frameBlobs.push(await canvasToBlob(firstFrame));
+
+    // Safety hard cap to avoid runaway capture; set conservatively high but finite
+    const HARD_LIMIT = Math.max(cfg.MAX_CAPTURE_FRAMES * 10, 2000);
+
+    while (S.animateRafId && frameBlobs.length < HARD_LIMIT) {
       if (exportAbort?.aborted) break;
-      await new Promise((r) => setTimeout(r, 16));
+      await new Promise((r) => setTimeout(r, Math.round(1000 / cfg.CAPTURE_FPS)));
       try {
-        buffer.push(await captureMapFrame());
+        const c = await captureMapFrame();
+        frameBlobs.push(await canvasToBlob(c));
         updateExportProgress(
-          10 + (buffer.length / Math.max(1, S.currentMST.length)) * 50,
+          10 + (frameBlobs.length / Math.max(1, S.currentMST.length)) * 50,
           "Capturing...",
-          `${buffer.length} frames`
+          `${frameBlobs.length} frames`
         );
         await new Promise((r) => setTimeout(r, 0));
       } catch (e) {
@@ -309,26 +327,31 @@ export async function exportAnimationAsGif() {
     }
 
     const duration = Math.max(0, performance.now() - start);
-    if (!buffer.length) buffer.push(await captureMapFrame());
+    if (!frameBlobs.length) frameBlobs.push(await canvasToBlob(await captureMapFrame()));
 
-    const finalFrame = await captureMapFrame();
-    for (let i = 0; i < 10; i++) {
-      buffer.push(finalFrame);
-    }
+    // add final frame several times to create hold at the end
+    const finalCanvas = await captureMapFrame();
+    const finalBlob = await canvasToBlob(finalCanvas);
+    for (let i = 0; i < 10; i++) frameBlobs.push(finalBlob);
 
     if (exportAbort?.aborted) throw new Error("ABORTED");
 
     updateExportProgress(60, "Preparing frames...", "");
 
-    const framePromises = buffer.map((canvas, i) => {
-      return new Promise((resolve) => {
-        canvas.toBlob((blob) => {
-          resolve({ blob, index: i });
-        }, "image/png");
-      });
-    });
+    // If we captured more than allowed by config, uniformly sample down to MAX_CAPTURE_FRAMES
+    let sampledBlobs = frameBlobs;
+    if (cfg.MAX_CAPTURE_FRAMES && frameBlobs.length > cfg.MAX_CAPTURE_FRAMES) {
+      const N = frameBlobs.length;
+      const M = cfg.MAX_CAPTURE_FRAMES;
+      const step = N / M;
+      sampledBlobs = new Array(M);
+      for (let i = 0; i < M; i++) {
+        const idx = Math.floor(i * step);
+        sampledBlobs[i] = frameBlobs[idx];
+      }
+    }
 
-    const frames = await Promise.all(framePromises);
+    const frames = sampledBlobs.map((blob, i) => ({ blob, index: i }));
 
     updateExportProgress(65, "Writing frames to FFmpeg...", "");
 
@@ -347,12 +370,20 @@ export async function exportAnimationAsGif() {
 
     if (exportAbort?.aborted) throw new Error("ABORTED");
 
-    updateExportProgress(70, "Encoding GIF...", "Starting FFmpeg");
+    // Calculate effective framerate so sampled/M frames keep original duration
+    const originalCount = frameBlobs.length || 1;
+    const sampledCount = frames.length || 1;
+    let ffmpegFramerate = cfg.CAPTURE_FPS;
+    try {
+      ffmpegFramerate = (cfg.CAPTURE_FPS * (sampledCount / originalCount)) || ffmpegFramerate;
+    } catch (e) {}
+    ffmpegFramerate = Math.max(MIN_FPS, Math.min(MAX_FPS, ffmpegFramerate));
+    ffmpegFramerate = Number(ffmpegFramerate.toFixed(2));
 
-    const fps = Math.min(MAX_FPS, Math.max(MIN_FPS, Math.round(buffer.length / (duration / 1000))));
+    updateExportProgress(70, "Encoding GIF...", `Encoding at ${ffmpegFramerate} fps`);
 
     await ffmpeg.exec([
-      "-framerate", String(fps),
+      "-framerate", String(ffmpegFramerate),
       "-i", "frame%05d.png",
       "-vf", `split[s0][s1];[s0]palettegen=max_colors=${FFMPEG_MAX_COLORS}[p];[s1][p]paletteuse=dither=bayer:bayer_scale=${FFMPEG_BAYER_SCALE}`,
       "-loop", "0",
