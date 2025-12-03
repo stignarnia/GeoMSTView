@@ -112,31 +112,49 @@ async function getFFmpeg() {
   });
 
   try {
+    // 0. Safety Check: specific to MT
+    if (!("SharedArrayBuffer" in window)) {
+      throw new Error("SharedArrayBuffer is not available. Please check your server headers (COOP/COEP) and browser compatibility.");
+    }
+
     // 1. Set the correct baseURL for Vite/MT
-    const baseURL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm";
+    // Ensure you are pointing to core-mt
+    const baseURL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core-mt@0.12.10/dist/esm";
 
     const remoteWasmURL = `${baseURL}/ffmpeg-core.wasm`;
-    const wasmKey = "ffmpeg_wasm_" + encodeURIComponent(remoteWasmURL);
+    const remoteWorkerURL = `${baseURL}/ffmpeg-core.worker.js`; // Define worker URL
+    const wasmKey = "ffmpeg_wasm_mt_" + encodeURIComponent(remoteWasmURL);
 
-    // Delegate wasm retrieval (cache or download with progress) to wasm-loader
-    const { wasmLoadURL, isBlob } = await fetchWasm(remoteWasmURL, wasmKey, progressManager, exportAbort);
+    // 2. Load WASM (Delegate to your existing cache/progress loader)
+    const { wasmLoadURL, isBlob: isWasmBlob } = await fetchWasm(remoteWasmURL, wasmKey, progressManager, exportAbort);
+
+    // 3. Load Worker (MUST be a Blob to work with SharedArrayBuffer from CDN)
+    // We fetch this simply because it's small, so we don't strictly need the progress manager here,
+    // but we MUST convert it to a blob.
+    const workerBlob = await fetch(remoteWorkerURL).then(r => r.blob());
+    const workerLoadURL = URL.createObjectURL(workerBlob);
 
     await ffmpeg.load({
-      // 2. Pass direct strings, relying on your COOP/COEP headers
       coreURL: `${baseURL}/ffmpeg-core.js`,
       wasmURL: wasmLoadURL,
-      workerURL: `${baseURL}/ffmpeg-core.worker.js`,
+      workerURL: workerLoadURL, // Pass the Blob URL, not the CDN string
     });
 
-    // cleanup blob URL if one was created
-    if (isBlob && wasmLoadURL && wasmLoadURL.startsWith("blob:")) {
+    // 4. Cleanup Blobs
+    // It's safe to revoke these after load() is complete
+    if (isWasmBlob && wasmLoadURL && wasmLoadURL.startsWith("blob:")) {
       try { URL.revokeObjectURL(wasmLoadURL); } catch (e) { }
+    }
+    if (workerLoadURL) {
+      try { URL.revokeObjectURL(workerLoadURL); } catch (e) { }
     }
 
     ffmpegInstance = ffmpeg;
     return ffmpeg;
+
   } catch (error) {
-    throw new Error(`Failed to load FFmpeg: ${error.message}`);
+    // This catches the specific "SharedArrayBuffer" error or load failures
+    throw new Error(`Failed to load FFmpeg MT: ${error.message}`);
   }
 }
 
@@ -442,6 +460,7 @@ export async function exportAnimationAsGif() {
     await checkAbortAndThrow();
 
     await ffmpeg.exec([
+      '-threads', '4',
       "-framerate", String(ffmpegFramerate),
       "-i", "frame%05d.png",
       "-vf", vfFilter,
