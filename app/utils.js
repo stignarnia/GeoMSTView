@@ -53,11 +53,10 @@ export const gcKey =
 
 export const greatCirclePoints = sharedGreatCirclePoints;
 
-const DB_NAME = "ffmpeg_cache_db";
+const DB_NAME = "IndexedDB";
 const DB_VERSION = 1;
 const STORE_NAME = "binary_store";
 
-// Helper to open the database
 function openDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -74,30 +73,14 @@ function openDB() {
   });
 }
 
-export async function readCachedBinary(key, maxAgeMs = Infinity) {
+async function getRawRecord(key) {
   try {
     const db = await openDB();
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const transaction = db.transaction([STORE_NAME], "readonly");
       const store = transaction.objectStore(STORE_NAME);
       const request = store.get(key);
-
-      request.onsuccess = () => {
-        const record = request.result;
-        // Check if record exists
-        if (!record) {
-          resolve(null);
-          return;
-        }
-        // Check age
-        if (isFinite(maxAgeMs) && Date.now() - record.ts > maxAgeMs) {
-          resolve(null);
-          return;
-        }
-        // Return the ArrayBuffer directly
-        resolve(record.data);
-      };
-
+      request.onsuccess = () => resolve(request.result || null);
       request.onerror = () => {
         console.warn("IDB Read Error");
         resolve(null);
@@ -109,19 +92,13 @@ export async function readCachedBinary(key, maxAgeMs = Infinity) {
   }
 }
 
-export async function writeCachedBinary(key, arrayBuffer) {
+async function putRawRecord(key, record) {
   try {
     const db = await openDB();
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const transaction = db.transaction([STORE_NAME], "readwrite");
       const store = transaction.objectStore(STORE_NAME);
-
-      // Store the ArrayBuffer directly (no Base64 needed for IDB)
-      const request = store.put({
-        ts: Date.now(),
-        data: arrayBuffer
-      }, key);
-
+      const request = store.put(record, key);
       request.onsuccess = () => resolve(true);
       request.onerror = (e) => {
         console.error("IDB Write Error:", e);
@@ -130,6 +107,55 @@ export async function writeCachedBinary(key, arrayBuffer) {
     });
   } catch (e) {
     console.error("Failed to write to cache DB", e);
+    return false;
+  }
+}
+
+async function removeRawRecord(key) {
+  try {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const transaction = db.transaction([STORE_NAME], "readwrite");
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.delete(key);
+      request.onsuccess = () => resolve(true);
+      request.onerror = () => resolve(false);
+    });
+  } catch (e) {
+    console.error("Failed to remove record from IDB", e);
+    return false;
+  }
+}
+
+export async function getRecord(key) {
+  return await getRawRecord(key);
+}
+
+export async function putRecord(key, record) {
+  return await putRawRecord(key, record);
+}
+
+export async function removeRecord(key) {
+  return await removeRawRecord(key);
+}
+
+export async function readCachedBinary(key, maxAgeMs = Infinity) {
+  try {
+    const record = await getRawRecord(key);
+    if (!record) return null;
+    if (isFinite(maxAgeMs) && Date.now() - record.ts > maxAgeMs) return null;
+    return record.data || null;
+  } catch (e) {
+    console.error("Failed to read binary from cache DB", e);
+    return null;
+  }
+}
+
+export async function writeCachedBinary(key, arrayBuffer) {
+  try {
+    return await putRawRecord(key, { ts: Date.now(), data: arrayBuffer });
+  } catch (e) {
+    console.error("Failed to write binary to cache DB", e);
     return false;
   }
 }

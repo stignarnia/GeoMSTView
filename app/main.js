@@ -4,7 +4,7 @@ import { createWorker, setWorkerMessageHandler } from "./worker-comm.js";
 import * as Render from "./render.js";
 import * as Anim from "./animation.js";
 import { runQueryAndRender, cacheKeyFromQuery } from "./api.js";
-import { resetAnimationState } from "./utils.js";
+import { resetAnimationState, removeRecord } from "./utils.js";
 import {
   hideSpinner,
   initCustomModalHandlers,
@@ -187,11 +187,11 @@ try {
           const ta = document.getElementById("customQuery");
           if (ta && ta.value) query = ta.value;
           else {
-            const saved = localStorage.getItem(S.CUSTOM_QUERY_KEY);
-            query = saved || (S && S.CFG && S.CFG.DEFAULT_CITIES_QUERY) || "";
+            // loadSavedQuery is async and will provide a default if missing
+            query = (await loadSavedQuery(S.CUSTOM_QUERY_KEY)) || (S && S.CFG && S.CFG.DEFAULT_CITIES_QUERY) || "";
           }
         } else if (datasetSelect.value === "preset") {
-          query = loadSavedQuery(S.PRESET_QUERY_KEY);
+          query = await loadSavedQuery(S.PRESET_QUERY_KEY);
         } else {
           alert("No cached query for this dataset to invalidate.");
           return;
@@ -202,7 +202,7 @@ try {
         }
         const key = await cacheKeyFromQuery(query);
         try {
-          localStorage.removeItem(key);
+          await removeRecord(key);
         } catch (e) { }
         try {
           S.gcCacheGlobal.clear();

@@ -1,4 +1,4 @@
-import { dedent } from "./utils.js";
+import { dedent, getRecord, putRecord, removeRecord } from "./utils.js";
 import { S } from "./state.js";
 
 let closeCb = null;
@@ -24,14 +24,18 @@ export function hideSpinner() {
 
 const getDefaultQuery = () => (S && S.CFG && S.CFG.DEFAULT_CITIES_QUERY) || "";
 
-export function loadSavedQuery(storageKey, defaultQuery = getDefaultQuery()) {
-  const saved = localStorage.getItem(storageKey);
-  if (saved) return dedent(saved);
-  const def = dedent(defaultQuery);
+export async function loadSavedQuery(storageKey, defaultQuery = getDefaultQuery()) {
   try {
-    localStorage.setItem(storageKey, def);
-  } catch (e) { }
-  return def;
+    const rec = await getRecord(storageKey);
+    if (rec && typeof rec.value !== "undefined") return dedent(rec.value);
+    const def = dedent(defaultQuery);
+    try {
+      await putRecord(storageKey, { ts: Date.now(), value: def });
+    } catch (e) {}
+    return def;
+  } catch (e) {
+    return dedent(defaultQuery);
+  }
 }
 
 export function updateEditButton() {
@@ -66,13 +70,13 @@ function animateHide(modal) {
   });
 }
 
-export function openCustomModal() {
+export async function openCustomModal() {
   const modal = document.getElementById("customModal");
   const textarea = document.getElementById("customQuery");
   const mapEl = document.getElementById("map");
   const controlsEl = document.querySelector(".controls");
   if (!modal || !textarea) return;
-  textarea.value = loadSavedQuery(S.CUSTOM_QUERY_KEY, getDefaultQuery());
+  textarea.value = await loadSavedQuery(S.CUSTOM_QUERY_KEY, getDefaultQuery());
   if (mapEl) mapEl.setAttribute("aria-hidden", "true"), (mapEl.inert = true);
   if (controlsEl)
     controlsEl.setAttribute("aria-hidden", "true"), (controlsEl.inert = true);
@@ -148,9 +152,9 @@ export function initCustomModalHandlers({ onOk = null, onClose = null } = {}) {
   const okTop = document.getElementById("okTop");
   const closeBtn = document.getElementById("closeModal");
   if (textarea)
-    textarea.addEventListener("input", (e) => {
+    textarea.addEventListener("input", async (e) => {
       try {
-        localStorage.setItem(S.CUSTOM_QUERY_KEY, e.target.value);
+        await putRecord(S.CUSTOM_QUERY_KEY, { ts: Date.now(), value: e.target.value });
       } catch (e) { }
     });
   if (revertBtn)
