@@ -320,10 +320,10 @@ export async function exportAnimationAsGif() {
         }, "image/png");
       });
 
-    // Capture all frames as compressed Blobs (less memory than keeping raw canvases)
+    // Capture all frames as compressed Blobs
     const frameBlobs = [];
 
-    // Predict captured/dropped using mathematical estimate (before capture)
+    // Predict captured/dropped using mathematical estimate
     const originalFrameInterval = 1000 / cfg.CAPTURE_FPS;
     const origInitialCount = Math.round(cfg.INITIAL_FRAME_DELAY_MS / originalFrameInterval);
     const perEdgeMs = S.animationDelay * S.CFG.EDGE_GROWTH_DURATION_FACTOR;
@@ -357,21 +357,45 @@ export async function exportAnimationAsGif() {
     // Update initial progress
     try { progressManager.updateStageProgress("capturing", Math.min(1, frameBlobs.length / targetCaptured), `${frameBlobs.length}/${targetCaptured}`, "Capturing frames"); } catch (e) { }
 
-    // Safety hard cap to avoid runaway capture; set conservatively high but finite
+    // Safety hard cap to avoid runaway capture
     const HARD_LIMIT = Math.max(cfg.MAX_CAPTURE_FRAMES * 10, 2000);
+
+    // --- OPTIMIZED LOOP START ---
+    // We calculate the next target time relative to NOW to prevent drift
+    let nextCaptureTime = performance.now() + captureIntervalMs;
 
     while (S.animateRafId && frameBlobs.length < HARD_LIMIT) {
       if (exportAbort?.aborted) break;
-      await new Promise((r) => setTimeout(r, captureIntervalMs));
+
+      // 1. Capture & Process IMMEDIATELY (Heavy work first)
       try {
         const c = await captureMapFrame();
         frameBlobs.push(await canvasToBlob(c));
         progressManager.updateStageProgress("capturing", Math.min(1, frameBlobs.length / targetCaptured), `${frameBlobs.length}/${targetCaptured}`, "Capturing frames");
-        await new Promise((r) => setTimeout(r, 0));
       } catch (e) {
         if (e.message === "CORS_ERROR") throw e;
       }
+
+      // 2. Calculate how much time is left in this interval
+      const now = performance.now();
+      const delay = Math.max(0, nextCaptureTime - now);
+
+      // 3. Wait only the remainder (or 0 if we are already late)
+      if (delay > 0) {
+        await new Promise((r) => setTimeout(r, delay));
+      } else {
+        // If we are late, yield briefly to UI so the browser doesn't freeze
+        await new Promise((r) => setTimeout(r, 0));
+      }
+
+      // 4. Schedule the next frame
+      nextCaptureTime += captureIntervalMs;
+      // Safety: If lag is massive, reset the schedule to avoid a burst of 0ms waits
+      if (nextCaptureTime < performance.now() - 1000) {
+        nextCaptureTime = performance.now() + captureIntervalMs;
+      }
     }
+    // --- OPTIMIZED LOOP END ---
 
     const duration = Math.max(0, performance.now() - start);
     if (!frameBlobs.length) frameBlobs.push(await canvasToBlob(await captureMapFrame()));
@@ -426,7 +450,6 @@ export async function exportAnimationAsGif() {
     await checkAbortAndThrow();
 
     // Calculate effective framerate based on the measured capture duration
-    // Use real elapsed time (including final hold) so GIF duration matches animation
     const sampledCount = frames.length || 1;
     let ffmpegFramerate = cfg.CAPTURE_FPS;
     try {
@@ -440,15 +463,8 @@ export async function exportAnimationAsGif() {
     // Read max colors directly from settings (MAX_COLORS) or fallback to constant
     const maxColors = Number(cfg.MAX_COLORS || FFMPEG_MAX_COLORS);
 
-    // Optional resolution downscale: target longest side (RESOLUTION)
-    // scale only when max(iw,ih) > RES, preserve aspect: compute rounded scaled w/h
-    // Note: the scale expression contains commas inside `if()` calls which
-    // must NOT be treated as filter separators. Escape commas only inside
-    // the scale expression so the rest of the filtergraph separators remain.
+    // Optional resolution downscale
     const scaleFilter = `scale=if(gt(max(iw,ih),${cfg.RESOLUTION}),round(iw*${cfg.RESOLUTION}/max(iw,ih)),-2):if(gt(max(iw,ih),${cfg.RESOLUTION}),round(ih*${cfg.RESOLUTION}/max(iw,ih)),-2)`;
-
-    // Escape commas within the scale expression to avoid splitting the filter
-    // graph at those commas. Do NOT escape the commas that separate filters.
     const scaleFilterEscaped = scaleFilter.replace(/,/g, "\\,");
 
     const vfFilter = scaleFilter
