@@ -258,10 +258,8 @@ document
       Render.renderCities(S.CFG.CAPITALS);
       S.map.setView(S.CFG.MAP_DEFAULT_CENTER, S.CFG.MAP_DEFAULT_ZOOM);
     } else if (v === "preset") {
-      await runQueryAndRender(
-        loadSavedQuery(S.PRESET_QUERY_KEY),
-        "Error fetching preset: "
-      );
+      const presetQ = await loadSavedQuery(S.PRESET_QUERY_KEY);
+      await runQueryAndRender(presetQ, "Error fetching preset: ");
     }
   });
 
@@ -311,7 +309,8 @@ try {
     const ds = initialSavedDataset;
     if (ds === "preset") {
       try { const sel = document.getElementById("datasetSelect"); if (sel) sel.value = "preset"; } catch (e) { }
-      await runQueryAndRender(loadSavedQuery(S.PRESET_QUERY_KEY), "Error fetching preset: ");
+      const presetQ = await loadSavedQuery(S.PRESET_QUERY_KEY);
+      await runQueryAndRender(presetQ, "Error fetching preset: ");
     } else if (ds === "custom") {
       try { const sel = document.getElementById("datasetSelect"); if (sel) sel.value = "custom"; } catch (e) { }
       const q = await loadSavedQuery(S.CUSTOM_QUERY_KEY);
