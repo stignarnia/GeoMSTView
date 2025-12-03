@@ -16,6 +16,29 @@ let exportAbort = null;
 let ffmpegInstance = null;
 let currentCleanup = null;
 
+function stopFFmpeg() {
+  try {
+    if (ffmpegInstance) {
+      try {
+        if (typeof ffmpegInstance.exit === "function") ffmpegInstance.exit();
+        else if (typeof ffmpegInstance.terminate === "function") ffmpegInstance.terminate();
+      } catch (e) { }
+      ffmpegInstance = null;
+    }
+  } catch (e) { }
+}
+
+async function checkAbortAndThrow() {
+  if (exportAbort?.aborted) {
+    try {
+      if (ffmpegInstance) {
+        if (typeof ffmpegInstance.exit === "function") await ffmpegInstance.exit();
+        else if (typeof ffmpegInstance.terminate === "function") ffmpegInstance.terminate();
+      }
+    } catch (e) { }
+  }
+}
+
 function initModalElements() {
   if (!exportModal) {
     exportModal = document.getElementById("exportModal");
@@ -126,7 +149,7 @@ async function getFFmpeg() {
           URL.revokeObjectURL(wasmLoadURL);
         } catch (e) { }
       }
-    } catch (err) { throw err; }
+    } catch (err) { }
 
     ffmpegInstance = ffmpeg;
     return ffmpeg;
@@ -199,7 +222,7 @@ async function captureMapFrame() {
     }
 
     return outCanvas;
-  } catch (e) { throw e; }
+  } catch (e) { }
 }
 
 function disableMapInteractions() {
@@ -242,10 +265,20 @@ export async function exportAnimationAsGif() {
     S.exportingGif = false;
     enableMapInteractions();
     document.body.classList.remove("exporting-gif");
+    stopFFmpeg();
     exportAbort = null;
     currentCleanup = null;
   };
   currentCleanup = cleanup;
+
+  const earlyAbortReturn = () => {
+    if (exportAbort?.aborted || !S.exportingGif) {
+      try { cleanup(); } catch (e) { }
+      try { hideExportModal(); } catch (e) { }
+      return true;
+    }
+    return false;
+  };
 
   try {
     disableMapInteractions();
@@ -257,31 +290,19 @@ export async function exportAnimationAsGif() {
     updateExportProgress(5, "Loading FFmpeg...", "");
     const ffmpeg = await getFFmpeg();
 
-    if (exportAbort?.aborted || !S.exportingGif) {
-      cleanup();
-      hideExportModal();
-      return;
-    }
+    if (earlyAbortReturn()) return;
 
     updateExportProgress(10, "Capturing frames...", "");
 
     const firstFrame = await captureMapFrame();
-    if (exportAbort?.aborted || !S.exportingGif) {
-      cleanup();
-      hideExportModal();
-      return;
-    }
+    if (earlyAbortReturn()) return;
 
     Anim.stopAnimation();
     Render.clearMSTLayers();
     S.animIndex = 0;
     Anim.clearCurrentEdgeAnim();
 
-    if (exportAbort?.aborted || !S.exportingGif) {
-      cleanup();
-      hideExportModal();
-      return;
-    }
+    if (earlyAbortReturn()) return;
 
     Anim.startAnimation();
 
@@ -364,7 +385,7 @@ export async function exportAnimationAsGif() {
     const finalCount = Math.max(1, Math.round(finalDelayMs / captureIntervalMs));
     for (let i = 0; i < finalCount; i++) frameBlobs.push(finalBlob);
 
-    if (exportAbort?.aborted) throw new Error("ABORTED");
+    await checkAbortAndThrow();
 
     updateExportProgress(60, "Preparing frames...", "");
 
@@ -397,6 +418,8 @@ export async function exportAnimationAsGif() {
       const frameData = new Uint8Array(await frames[i].blob.arrayBuffer());
       await ffmpeg.writeFile(`frame${String(i).padStart(5, "0")}.png`, frameData);
 
+      await checkAbortAndThrow();
+
       if (i % 10 === 0) {
         updateExportProgress(
           65 + (i / frames.length) * 5,
@@ -406,7 +429,7 @@ export async function exportAnimationAsGif() {
       }
     }
 
-    if (exportAbort?.aborted) throw new Error("ABORTED");
+    await checkAbortAndThrow();
 
     // Calculate effective framerate based on the measured capture duration
     // Use real elapsed time (including final hold) so GIF duration matches animation
@@ -440,6 +463,8 @@ export async function exportAnimationAsGif() {
 
     updateExportProgress(70, "Encoding GIF...", `Encoding at ${ffmpegFramerate} fps`);
 
+    await checkAbortAndThrow();
+
     await ffmpeg.exec([
       "-framerate", String(ffmpegFramerate),
       "-i", "frame%05d.png",
@@ -448,7 +473,7 @@ export async function exportAnimationAsGif() {
       "output.gif"
     ]);
 
-    if (exportAbort?.aborted) throw new Error("ABORTED");
+    await checkAbortAndThrow();
 
     updateExportProgress(95, "Reading output...", "");
 
@@ -479,9 +504,10 @@ export async function exportAnimationAsGif() {
     setTimeout(hideExportModal, 1500);
 
   } catch (e) {
+    const wasAborted = exportAbort?.aborted || !S.exportingGif;
     cleanup();
     hideExportModal();
-    if (e.message === "ABORTED") return;
+    if (e.message === "ABORTED" || wasAborted) return;
     alert(
       e.message === "CORS_ERROR"
         ? "CORS error on map tiles. Try switching to light theme or check network tab."
