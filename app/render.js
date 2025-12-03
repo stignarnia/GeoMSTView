@@ -66,6 +66,8 @@ export function clearLayers() {
     S.candidateLayerGroup.clearLayers();
   } catch (e) { }
   S.candidateLines.length = 0;
+  // ensure k-nearest recomputes after a dataset change/clear
+  try { S.lastKNearest = null; } catch (e) { }
   try {
     S.mstLayerGroup.clearLayers();
   } catch (e) { }
@@ -109,7 +111,7 @@ export function redrawCandidateLines() {
   }
 
   // avoid unnecessary redraws on zooms that don't change kNearest
-  if (S._lastKNearest === kNearest) return;
+  if (S.lastKNearest === kNearest) return;
 
   try {
     S.candidateLayerGroup.clearLayers();
@@ -144,7 +146,7 @@ export function redrawCandidateLines() {
   }
 
   // remember last computed kNearest to skip redundant redraws
-  S._lastKNearest = kNearest;
+  S.lastKNearest = kNearest;
 }
 
 export async function renderCities(list, postCompute = true) {
