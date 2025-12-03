@@ -58,7 +58,7 @@ export function animateStep() {
   ).addTo(S.map);
   S.highlightMarkers.push(h1, h2);
 
-  // Gradually fade in highlight for canvas-rendered markers so GIF export captures it
+  // Gradually fade in highlight for canvas-rendered markers
   (function animateHighlight(a, b) {
     const delay = Number(S.CFG.HIGHLIGHT_FADE_IN_DELAY_MS) || 0;
     const duration = Number(S.CFG.HIGHLIGHT_ANIM_DURATION) || 300;
@@ -83,20 +83,22 @@ export function animateStep() {
     latlngs: latlngs,
     progress: 0,
     polylineParts: [],
+    // Note: We no longer rely on startTime for logic, but it's harmless to keep
     startTime: performance.now(),
   };
   S.animIndex++;
 }
 
-export function updateEdgeAnimation(timestamp) {
-  if (!currentEdgeAnim) return true;
-  const elapsed = timestamp - currentEdgeAnim.startTime;
-  const duration = Math.max(
-    100,
-    S.animationDelay * S.CFG.EDGE_GROWTH_DURATION_FACTOR
-  );
-  currentEdgeAnim.progress = Math.min(1, elapsed / duration);
-  // Reuse existing polyline parts when possible to avoid frequent create/remove
+/**
+ * Visual update only - driven by the computed progress (0..1) passed in.
+ * We removed the time calculation from here to centralize it in the loop.
+ */
+export function updateEdgeAnimationVisuals(progress) {
+  if (!currentEdgeAnim) return;
+
+  currentEdgeAnim.progress = progress;
+
+  // Reuse existing polyline parts when possible
   const totalPoints = currentEdgeAnim.latlngs.length;
   const pointsToShow = Math.max(
     2,
@@ -147,7 +149,7 @@ export function updateEdgeAnimation(timestamp) {
     if (seg.length) addOrUpdatePart(seg);
   }
 
-  // Remove any leftover old parts that weren't reused
+  // Remove leftover old parts
   if (currentEdgeAnim.polylineParts && currentEdgeAnim.polylineParts.length) {
     for (
       let i = newParts.length;
@@ -166,11 +168,6 @@ export function updateEdgeAnimation(timestamp) {
   }
 
   currentEdgeAnim.polylineParts = newParts;
-  if (currentEdgeAnim.progress >= 1) {
-    currentEdgeAnim = null;
-    return true;
-  }
-  return false;
 }
 
 export function stopAnimation() {
@@ -178,7 +175,6 @@ export function stopAnimation() {
     cancelAnimationFrame(S.animateRafId);
     S.animateRafId = null;
   }
-  // ensure candidate redraws stay disabled when animation stops/finishes
   S.candidateRedrawAllowed = false;
 }
 
@@ -188,29 +184,86 @@ export function clearCurrentEdgeAnim() {
 
 export function startAnimation() {
   if (S.animateRafId) return;
-  S.animateLastStepTs = performance.now();
-  // disable candidate redraws while animation is running (and after)
+
   S.candidateRedrawAllowed = false;
+  S.lastFrameTime = performance.now();
+
+  // If we are restarting, pick up exactly where we left off (S.currentFloatIndex)
+  // If this is a fresh start, ensure index is reset elsewhere or here:
+  if (S.animIndex === 0) S.currentFloatIndex = 0;
+
   function loop(ts) {
     if (!S.animateRafId) return;
-    if (S.animIndex >= S.currentMST.length && !currentEdgeAnim) {
+
+    const dt = ts - S.lastFrameTime;
+    S.lastFrameTime = ts;
+
+    // 1. Calculate current step properties
+    const growthDuration = S.animationDelay * S.CFG.EDGE_GROWTH_DURATION_FACTOR;
+    const pauseDuration = S.animationDelay; // Total step time = growth + pause? 
+    const stepInterval = growthDuration + pauseDuration;
+
+    // 2. Advance Float Index based on Delta Time
+    // Rate of change = 1 step / stepInterval (ms)
+    const stepProgress = dt / stepInterval;
+    S.currentFloatIndex += stepProgress;
+
+    // 3. Handle Logic based on Float Index
+    const totalSteps = S.currentMST.length;
+    const integerIndex = Math.floor(S.currentFloatIndex); // Which step are we fully IN?
+
+    // If we are behind the integer index (e.g. we just crossed a threshold)
+    // we need to ensure all previous steps are visually completed.
+    while (S.animIndex < integerIndex && S.animIndex < totalSteps) {
+      // Finish current edge
+      if (currentEdgeAnim) {
+        updateEdgeAnimationVisuals(1.0);
+        currentEdgeAnim = null;
+      }
+      // Start next edge (creates currentEdgeAnim)
+      animateStep();
+
+      // If we are still behind after starting it, finish it immediately
+      if (S.animIndex < integerIndex && currentEdgeAnim) {
+        updateEdgeAnimationVisuals(1.0);
+        currentEdgeAnim = null;
+      }
+    }
+
+    // 4. Animate the current active edge
+    // S.animIndex now points to the edge we are *currently* processing (or just finished).
+    // The fractional part of S.currentFloatIndex tells us how far we are into THIS step.
+    if (currentEdgeAnim) {
+      // Calculate 0..1 progress within this specific step interval
+      const stepFraction = S.currentFloatIndex - (S.animIndex - 1);
+
+      // Map step fraction (0..1 over growth+pause) to growth phase (0..1 over growth only)
+      const growthFraction = growthDuration / stepInterval;
+      let visualProgress = stepFraction / growthFraction;
+
+      // Clamp to 1 (if we are in the pause phase, we stay at 100% visual)
+      visualProgress = Math.min(1, Math.max(0, visualProgress));
+
+      updateEdgeAnimationVisuals(visualProgress);
+
+      if (stepFraction >= 1.0) {
+        // Step complete
+        currentEdgeAnim = null;
+      }
+    } else if (S.animIndex < totalSteps && S.animIndex <= integerIndex) {
+      // Case: We just finished a step but haven't started the new one yet, 
+      // AND the float index says we should be in the new one.
+      animateStep();
+    }
+
+    // 5. Check for completion
+    if (S.animIndex >= totalSteps && !currentEdgeAnim) {
       stopAnimation();
       return;
     }
-    if (currentEdgeAnim) {
-      const edgeComplete = updateEdgeAnimation(ts);
-      if (!edgeComplete) {
-        S.animateRafId = requestAnimationFrame(loop);
-        return;
-      }
-    }
-    if (ts - S.animateLastStepTs >= S.animationDelay) {
-      try {
-        animateStep();
-      } catch (e) { }
-      S.animateLastStepTs = ts;
-    }
+
     S.animateRafId = requestAnimationFrame(loop);
   }
+
   S.animateRafId = requestAnimationFrame(loop);
 }

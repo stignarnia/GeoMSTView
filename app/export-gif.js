@@ -129,8 +129,6 @@ async function getFFmpeg() {
     const { wasmLoadURL, isBlob: isWasmBlob } = await fetchWasm(remoteWasmURL, wasmKey, progressManager, exportAbort);
 
     // 3. Load Worker (MUST be a Blob to work with SharedArrayBuffer from CDN)
-    // We fetch this simply because it's small, so we don't strictly need the progress manager here,
-    // but we MUST convert it to a blob.
     const workerBlob = await fetch(remoteWorkerURL).then(r => r.blob());
     const workerLoadURL = URL.createObjectURL(workerBlob);
 
@@ -141,7 +139,6 @@ async function getFFmpeg() {
     });
 
     // 4. Cleanup Blobs
-    // It's safe to revoke these after load() is complete
     if (isWasmBlob && wasmLoadURL && wasmLoadURL.startsWith("blob:")) {
       try { URL.revokeObjectURL(wasmLoadURL); } catch (e) { }
     }
@@ -153,7 +150,6 @@ async function getFFmpeg() {
     return ffmpeg;
 
   } catch (error) {
-    // This catches the specific "SharedArrayBuffer" error or load failures
     throw new Error(`Failed to load FFmpeg MT: ${error.message}`);
   }
 }
@@ -165,7 +161,6 @@ async function captureMapFrame() {
   const width = mapContainer.offsetWidth;
   const height = mapContainer.offsetHeight;
 
-  // Try fast direct composition from existing canvases/images inside the map container.
   try {
     const containerRect = mapContainer.getBoundingClientRect();
 
@@ -176,10 +171,8 @@ async function captureMapFrame() {
 
     let drewSomething = false;
 
-    // Draw elements in DOM order to preserve stacking (tiles, overlays, controls)
     const nodes = Array.from(mapContainer.querySelectorAll("canvas, img, svg"));
     for (const node of nodes) {
-      // skip leaflet controls
       if (node.classList && node.classList.contains("leaflet-control")) continue;
       if (node.closest && node.closest(".leaflet-control-container")) continue;
       try {
@@ -211,10 +204,8 @@ async function captureMapFrame() {
       }
     }
 
-    // If nothing drawable found, fallback to html2canvas
     if (!drewSomething) throw new Error("NO_DIRECT_LAYERS");
 
-    // Quick taint check: reading pixels will throw if cross-origin tiles taint the canvas
     try {
       ctx.getImageData(0, 0, 1, 1);
     } catch (e) {
@@ -299,8 +290,14 @@ export async function exportAnimationAsGif() {
 
     Anim.stopAnimation();
     Render.clearMSTLayers();
+
+    // --------------------------------------------------------------------
+    // CRITICAL FIX FOR NEW ANIMATION ENGINE: RESET BOTH INDICES
+    // --------------------------------------------------------------------
     S.animIndex = 0;
+    S.currentFloatIndex = 0; // <--- Must reset the float accumulator!
     Anim.clearCurrentEdgeAnim();
+    // --------------------------------------------------------------------
 
     if (earlyAbortReturn()) return;
 
@@ -308,7 +305,6 @@ export async function exportAnimationAsGif() {
 
     const start = performance.now();
 
-    // Helper: convert canvas to PNG Blob and try to free the canvas backing store
     const canvasToBlob = (canvas) =>
       new Promise((resolve) => {
         canvas.toBlob((blob) => {
@@ -320,24 +316,20 @@ export async function exportAnimationAsGif() {
         }, "image/png");
       });
 
-    // Capture all frames as compressed Blobs
     const frameBlobs = [];
 
-    // Predict captured/dropped using mathematical estimate
     const originalFrameInterval = 1000 / cfg.CAPTURE_FPS;
     const origInitialCount = Math.round(cfg.INITIAL_FRAME_DELAY_MS / originalFrameInterval);
-    const perEdgeMs = S.animationDelay * S.CFG.EDGE_GROWTH_DURATION_FACTOR;
+    const perEdgeMs = S.animationDelay * S.CFG.EDGE_GROWTH_DURATION_FACTOR + S.animationDelay;
     const origMiddleCount = Math.ceil((S.currentMST.length * perEdgeMs) / originalFrameInterval);
     const origFinalCount = Math.round(cfg.FINAL_FRAME_DELAY_MS / originalFrameInterval);
     const predictedCaptured = origInitialCount + origMiddleCount + origFinalCount;
     const predictedDropped = Math.max(0, predictedCaptured - cfg.MAX_CAPTURE_FRAMES);
 
-    // Target: keep 10% more than predicted captured minus dropped (cushion)
     let targetCaptured = predictedCaptured - predictedDropped;
     targetCaptured += Math.round(targetCaptured * 0.1);
     const expectedDrop = Math.max(0, targetCaptured - cfg.MAX_CAPTURE_FRAMES);
 
-    // Adjust capture FPS proportionally to reach targetCaptured
     const adjustedFPS = Math.max(MIN_FPS, cfg.CAPTURE_FPS * (targetCaptured / predictedCaptured));
 
     const captureIntervalMs = Math.round(1000 / adjustedFPS);
@@ -349,25 +341,19 @@ export async function exportAnimationAsGif() {
       "originalFPS=", cfg.CAPTURE_FPS,
       "adjustedFPS=", Number(adjustedFPS.toFixed(2)));
 
-    // push first frame(s) according to adjusted capture interval
     const initialCount = Math.max(1, Math.round(cfg.INITIAL_FRAME_DELAY_MS / captureIntervalMs));
     const firstBlob = await canvasToBlob(firstFrame);
     for (let i = 0; i < initialCount; i++) frameBlobs.push(firstBlob);
 
-    // Update initial progress
     try { progressManager.updateStageProgress("capturing", Math.min(1, frameBlobs.length / targetCaptured), `${frameBlobs.length}/${targetCaptured}`, "Capturing frames"); } catch (e) { }
 
-    // Safety hard cap to avoid runaway capture
     const HARD_LIMIT = Math.max(cfg.MAX_CAPTURE_FRAMES * 10, 2000);
 
-    // --- OPTIMIZED LOOP START ---
-    // We calculate the next target time relative to NOW to prevent drift
     let nextCaptureTime = performance.now() + captureIntervalMs;
 
     while (S.animateRafId && frameBlobs.length < HARD_LIMIT) {
       if (exportAbort?.aborted) break;
 
-      // 1. Capture & Process IMMEDIATELY (Heavy work first)
       try {
         const c = await captureMapFrame();
         frameBlobs.push(await canvasToBlob(c));
@@ -376,31 +362,24 @@ export async function exportAnimationAsGif() {
         if (e.message === "CORS_ERROR") throw e;
       }
 
-      // 2. Calculate how much time is left in this interval
       const now = performance.now();
       const delay = Math.max(0, nextCaptureTime - now);
 
-      // 3. Wait only the remainder (or 0 if we are already late)
       if (delay > 0) {
         await new Promise((r) => setTimeout(r, delay));
       } else {
-        // If we are late, yield briefly to UI so the browser doesn't freeze
         await new Promise((r) => setTimeout(r, 0));
       }
 
-      // 4. Schedule the next frame
       nextCaptureTime += captureIntervalMs;
-      // Safety: If lag is massive, reset the schedule to avoid a burst of 0ms waits
       if (nextCaptureTime < performance.now() - 1000) {
         nextCaptureTime = performance.now() + captureIntervalMs;
       }
     }
-    // --- OPTIMIZED LOOP END ---
 
     const duration = Math.max(0, performance.now() - start);
     if (!frameBlobs.length) frameBlobs.push(await canvasToBlob(await captureMapFrame()));
 
-    // add final frame(s) according to FINAL_FRAME_DELAY_MS to create hold at the end
     const finalCanvas = await captureMapFrame();
     const finalBlob = await canvasToBlob(finalCanvas);
     const finalDelayMs = cfg.FINAL_FRAME_DELAY_MS;
@@ -411,7 +390,6 @@ export async function exportAnimationAsGif() {
 
     progressManager.setStage("writing", "Preparing frames...");
 
-    // If we captured more than allowed by config, uniformly sample down to MAX_CAPTURE_FRAMES
     let sampledBlobs = frameBlobs;
     if (cfg.MAX_CAPTURE_FRAMES && frameBlobs.length > cfg.MAX_CAPTURE_FRAMES) {
       const N = frameBlobs.length;
@@ -426,7 +404,6 @@ export async function exportAnimationAsGif() {
 
     const frames = sampledBlobs.map((blob, i) => ({ blob, index: i }));
 
-    // Log actual capture/sample results
     const actualCaptured = frameBlobs.length;
     const actualSampled = frames.length;
     const actualDropped = Math.max(0, actualCaptured - (cfg.MAX_CAPTURE_FRAMES || actualCaptured));
@@ -449,21 +426,17 @@ export async function exportAnimationAsGif() {
 
     await checkAbortAndThrow();
 
-    // Calculate effective framerate based on the measured capture duration
     const sampledCount = frames.length || 1;
     let ffmpegFramerate = cfg.CAPTURE_FPS;
     try {
       const totalDurationMs = Math.max(1, duration + (finalDelayMs || 0));
-      // frames per second = number of frames / total seconds
       ffmpegFramerate = sampledCount / (totalDurationMs / 1000);
     } catch (e) { }
     ffmpegFramerate = Math.max(MIN_FPS, ffmpegFramerate);
     ffmpegFramerate = Number(ffmpegFramerate.toFixed(2));
 
-    // Read max colors directly from settings (MAX_COLORS) or fallback to constant
     const maxColors = Number(cfg.MAX_COLORS || FFMPEG_MAX_COLORS);
 
-    // Optional resolution downscale
     const scaleFilter = `scale=if(gt(max(iw,ih),${cfg.RESOLUTION}),round(iw*${cfg.RESOLUTION}/max(iw,ih)),-2):if(gt(max(iw,ih),${cfg.RESOLUTION}),round(ih*${cfg.RESOLUTION}/max(iw,ih)),-2)`;
     const scaleFilterEscaped = scaleFilter.replace(/,/g, "\\,");
 
