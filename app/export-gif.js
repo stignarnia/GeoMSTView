@@ -2,7 +2,6 @@ import { S } from "./state.js";
 import * as Anim from "./animation.js";
 import * as Render from "./render.js";
 import { resetAnimationState } from "./utils.js";
-import html2canvas from "html2canvas";
 
 // 1. Libraries via NPM (as requested)
 import { FFmpeg } from "@ffmpeg/ffmpeg";
@@ -18,7 +17,6 @@ let exportAbort = null;
 let ffmpegInstance = null;
 let currentCleanup = null;
 
-// [UI Helper Functions - No changes]
 function initModalElements() {
   if (!exportModal) {
     exportModal = document.getElementById("exportModal");
@@ -110,23 +108,67 @@ async function captureMapFrame() {
   const mapContainer = S.map.getContainer();
   if (!mapContainer) throw new Error("Map container not found");
 
+  const width = mapContainer.offsetWidth;
+  const height = mapContainer.offsetHeight;
+
+  // Try fast direct composition from existing canvases/images inside the map container.
   try {
-    const canvas = await html2canvas(mapContainer, {
-      useCORS: true,
-      allowTaint: false,
-      backgroundColor: null,
-      logging: false,
-      scale: 1,
-      width: mapContainer.offsetWidth,
-      height: mapContainer.offsetHeight,
-    });
-    return canvas;
-  } catch (error) {
-    if (error.message && (error.message.includes("tainted") || error.message.includes("CORS"))) {
+    const containerRect = mapContainer.getBoundingClientRect();
+
+    const outCanvas = document.createElement("canvas");
+    outCanvas.width = width;
+    outCanvas.height = height;
+    const ctx = outCanvas.getContext("2d");
+
+    let drewSomething = false;
+
+    // Draw elements in DOM order to preserve stacking (tiles, overlays, controls)
+    const nodes = Array.from(mapContainer.querySelectorAll("canvas, img, svg"));
+    for (const node of nodes) {
+      // skip leaflet controls
+      if (node.classList && node.classList.contains("leaflet-control")) continue;
+      if (node.closest && node.closest(".leaflet-control-container")) continue;
+      try {
+        const r = node.getBoundingClientRect();
+        const dx = Math.round(r.left - containerRect.left);
+        const dy = Math.round(r.top - containerRect.top);
+        const dw = Math.round(r.width);
+        const dh = Math.round(r.height);
+        if (node.tagName && node.tagName.toLowerCase() === "canvas") {
+          const c = node;
+          const sw = c.width || r.width;
+          const sh = c.height || r.height;
+          ctx.drawImage(c, 0, 0, sw, sh, dx, dy, dw, dh);
+          drewSomething = true;
+        } else if (node.tagName && node.tagName.toLowerCase() === "img") {
+          ctx.drawImage(node, dx, dy, dw, dh);
+          drewSomething = true;
+        } else if (node.tagName && node.tagName.toLowerCase() === "svg") {
+          const svg = node;
+          const svgString = new XMLSerializer().serializeToString(svg);
+          const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+          const bitmap = await createImageBitmap(blob);
+          ctx.drawImage(bitmap, dx, dy, dw, dh);
+          try { bitmap.close && bitmap.close(); } catch (e) { }
+          drewSomething = true;
+        }
+      } catch (e) {
+        console.warn("Skipped node during compose:", e);
+      }
+    }
+
+    // If nothing drawable found, fallback to html2canvas
+    if (!drewSomething) throw new Error("NO_DIRECT_LAYERS");
+
+    // Quick taint check: reading pixels will throw if cross-origin tiles taint the canvas
+    try {
+      ctx.getImageData(0, 0, 1, 1);
+    } catch (e) {
       throw new Error("CORS_ERROR");
     }
-    throw error;
-  }
+
+    return outCanvas;
+  } catch (e) { throw e; }
 }
 
 function disableMapInteractions() {
