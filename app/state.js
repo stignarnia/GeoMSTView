@@ -1,6 +1,14 @@
 import CFG from "../settings.json" with { type: "json" };
 export const S = {
   CFG,
+  // settings persistence keys (centralized)
+  SETTINGS_PREFIX: "mst_",
+  SETTINGS_KEYS: {
+    DATASET: "dataset",
+    ALGORITHM: "algorithm",
+    ENDPOINT: "endpoint",
+    ANIMATION_DELAY: "animationDelay",
+  },
   map: null,
   // storage keys
   CUSTOM_QUERY_KEY: "overpass_custom_query_v1",

@@ -159,3 +159,37 @@ export async function writeCachedBinary(key, arrayBuffer) {
     return false;
   }
 }
+
+// Settings persistence helpers (use localStorage, similar to theme usage)
+export function getSetting(key) {
+  try {
+    const raw = localStorage.getItem(S.SETTINGS_PREFIX + key);
+    if (raw === null || typeof raw === "undefined") return null;
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      return raw;
+    }
+  } catch (e) {
+    return null;
+  }
+}
+
+export function setSetting(key, value) {
+  try {
+    const toStore = JSON.stringify(value);
+    localStorage.setItem(S.SETTINGS_PREFIX + key, toStore);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+export function loadAllSettings() {
+  return {
+    dataset: getSetting(S.SETTINGS_KEYS.DATASET),
+    algorithm: getSetting(S.SETTINGS_KEYS.ALGORITHM),
+    endpoint: getSetting(S.SETTINGS_KEYS.ENDPOINT),
+    animationDelay: getSetting(S.SETTINGS_KEYS.ANIMATION_DELAY),
+  };
+}

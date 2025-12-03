@@ -4,7 +4,7 @@ import { createWorker, setWorkerMessageHandler } from "./worker-comm.js";
 import * as Render from "./render.js";
 import * as Anim from "./animation.js";
 import { runQueryAndRender, cacheKeyFromQuery } from "./api.js";
-import { resetAnimationState, removeRecord } from "./utils.js";
+import { resetAnimationState, removeRecord, getSetting, setSetting, loadAllSettings } from "./utils.js";
 import {
   hideSpinner,
   initCustomModalHandlers,
@@ -16,6 +16,7 @@ import { registerServiceWorker } from "./pwa.js";
 import { exportAnimationAsGif, initExportModal } from "./export-gif.js";
 
 let prevDataset = "capitals";
+let initialSavedDataset = null;
 
 // Initialize CSS variables, map and state
 applyCssVars();
@@ -84,6 +85,22 @@ try {
       applyTheme(next);
       animateIconSwap(themeIcon, iconForAction(next));
     });
+} catch (e) { }
+
+// load saved settings (dataset, algorithm, endpoint, animation speed)
+try {
+  try {
+    const all = loadAllSettings();
+    if (all) {
+      if (all.algorithm) S.currentAlgorithm = all.algorithm;
+      if (all.endpoint) S.CFG.OVERPASS_ENDPOINT = all.endpoint;
+      if (typeof all.animationDelay !== "undefined" && all.animationDelay !== null) {
+        const n = Number(all.animationDelay);
+        if (!Number.isNaN(n)) S.animationDelay = n;
+      }
+      initialSavedDataset = all.dataset || null;
+    }
+  } catch (e) { }
 } catch (e) { }
 
 setWorkerMessageHandler((msg) => {
@@ -230,6 +247,7 @@ document
     updateEditButton();
     // ensure animation state reset when dataset changes
     resetAnimationState();
+    try { setSetting(S.SETTINGS_KEYS.DATASET, v); } catch (e) { }
     if (v === "custom") {
       openCustomModal();
       return;
@@ -251,8 +269,12 @@ document
 try {
   const algoSel = document.getElementById("algoSelect");
   if (algoSel) {
+    try {
+      algoSel.value = S.currentAlgorithm;
+    } catch (e) { }
     algoSel.addEventListener("change", (e) => {
       S.currentAlgorithm = e.target.value;
+      try { setSetting(S.SETTINGS_KEYS.ALGORITHM, e.target.value); } catch (err) { }
       resetAnimationState();
       try {
         // re-run compute/render for the currently loaded cities so the
@@ -272,16 +294,37 @@ try {
   endpointInput &&
     endpointInput.addEventListener("input", (e) => {
       S.CFG.OVERPASS_ENDPOINT = e.target.value.trim();
+      try { setSetting(S.SETTINGS_KEYS.ENDPOINT, e.target.value.trim()); } catch (err) { }
     });
   resetEndpointBtn &&
     resetEndpointBtn.addEventListener("click", () => {
       if (endpointInput) endpointInput.value = DEFAULT_ENDPOINT;
       S.CFG.OVERPASS_ENDPOINT = DEFAULT_ENDPOINT;
+      try { setSetting(S.SETTINGS_KEYS.ENDPOINT, DEFAULT_ENDPOINT); } catch (err) { }
     });
 } catch (e) { }
 
 // initialize
-Render.renderCities(S.CFG.CAPITALS);
+// Initialize dataset based on saved preference (if any)
+(async () => {
+  try {
+    const ds = initialSavedDataset;
+    if (ds === "preset") {
+      try { const sel = document.getElementById("datasetSelect"); if (sel) sel.value = "preset"; } catch (e) { }
+      await runQueryAndRender(loadSavedQuery(S.PRESET_QUERY_KEY), "Error fetching preset: ");
+    } else if (ds === "custom") {
+      try { const sel = document.getElementById("datasetSelect"); if (sel) sel.value = "custom"; } catch (e) { }
+      const q = await loadSavedQuery(S.CUSTOM_QUERY_KEY);
+      await runQueryAndRender(q, "Error fetching custom: ");
+    } else {
+      try { const sel = document.getElementById("datasetSelect"); if (sel) sel.value = "capitals"; } catch (e) { }
+      Render.renderCities(S.CFG.CAPITALS);
+      try { S.map.setView(S.CFG.MAP_DEFAULT_CENTER, S.CFG.MAP_DEFAULT_ZOOM); } catch (e) { }
+    }
+  } catch (e) {
+    try { Render.renderCities(S.CFG.CAPITALS); } catch (err) { }
+  }
+})();
 try {
   updateEditButton();
 } catch (e) { }
@@ -341,6 +384,7 @@ try {
     speedRange.addEventListener("input", (e) => {
       const v = e.target.value;
       applyValue(v);
+      try { setSetting(S.SETTINGS_KEYS.ANIMATION_DELAY, S.animationDelay); } catch (err) { }
     });
   }
 } catch (e) { }
