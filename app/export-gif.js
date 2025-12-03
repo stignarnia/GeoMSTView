@@ -408,12 +408,14 @@ export async function exportAnimationAsGif() {
 
     if (exportAbort?.aborted) throw new Error("ABORTED");
 
-    // Calculate effective framerate so sampled/M frames keep original duration
-    const originalCount = frameBlobs.length || 1;
+    // Calculate effective framerate based on the measured capture duration
+    // Use real elapsed time (including final hold) so GIF duration matches animation
     const sampledCount = frames.length || 1;
     let ffmpegFramerate = cfg.CAPTURE_FPS;
     try {
-      ffmpegFramerate = (cfg.CAPTURE_FPS * (sampledCount / originalCount)) || ffmpegFramerate;
+      const totalDurationMs = Math.max(1, duration + (finalDelayMs || 0));
+      // frames per second = number of frames / total seconds
+      ffmpegFramerate = sampledCount / (totalDurationMs / 1000);
     } catch (e) { }
     ffmpegFramerate = Math.max(MIN_FPS, ffmpegFramerate);
     ffmpegFramerate = Number(ffmpegFramerate.toFixed(2));
