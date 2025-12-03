@@ -1,7 +1,7 @@
 import { S } from "./state.js";
 import * as Anim from "./animation.js";
 import * as Render from "./render.js";
-import { resetAnimationState } from "./utils.js";
+import { resetAnimationState, readCachedBinary, writeCachedBinary } from "./utils.js";
 
 // 1. Libraries via NPM (as requested)
 import { FFmpeg } from "@ffmpeg/ffmpeg";
@@ -90,12 +90,44 @@ async function getFFmpeg() {
     // 1. Set the correct baseURL for Vite/MT
     const baseURL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm";
 
-    await ffmpeg.load({
-      // 2. Pass direct strings, relying on your COOP/COEP headers
-      coreURL: `${baseURL}/ffmpeg-core.js`,
-      wasmURL: `${baseURL}/ffmpeg-core.wasm`,
-      workerURL: `${baseURL}/ffmpeg-core.worker.js`,
-    });
+    const remoteWasmURL = `${baseURL}/ffmpeg-core.wasm`;
+    const wasmKey = "ffmpeg_wasm_" + encodeURIComponent(remoteWasmURL);
+
+    let wasmLoadURL = remoteWasmURL;
+    try {
+      const cached = await readCachedBinary(wasmKey);
+      if (cached) {
+        const blob = new Blob([cached], { type: "application/wasm" });
+        wasmLoadURL = URL.createObjectURL(blob);
+      } else {
+        try {
+          const resp = await fetch(remoteWasmURL);
+          if (resp.ok) {
+            const ab = await resp.arrayBuffer();
+            await writeCachedBinary(wasmKey, ab);
+            const blob = new Blob([ab], { type: "application/wasm" });
+            wasmLoadURL = URL.createObjectURL(blob);
+          }
+        } catch (e) {
+          // fallback to remote URL if fetch fails
+          wasmLoadURL = remoteWasmURL;
+        }
+      }
+
+      await ffmpeg.load({
+        // 2. Pass direct strings, relying on your COOP/COEP headers
+        coreURL: `${baseURL}/ffmpeg-core.js`,
+        wasmURL: wasmLoadURL,
+        workerURL: `${baseURL}/ffmpeg-core.worker.js`,
+      });
+
+      // cleanup blob URL if one was created
+      if (wasmLoadURL && wasmLoadURL.startsWith("blob:")) {
+        try {
+          URL.revokeObjectURL(wasmLoadURL);
+        } catch (e) { }
+      }
+    } catch (err) { throw err; }
 
     ffmpegInstance = ffmpeg;
     return ffmpeg;

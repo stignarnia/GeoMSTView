@@ -52,3 +52,84 @@ export const gcKey =
   sharedGcKey || ((a, b) => Math.min(a, b) + "|" + Math.max(a, b));
 
 export const greatCirclePoints = sharedGreatCirclePoints;
+
+const DB_NAME = "ffmpeg_cache_db";
+const DB_VERSION = 1;
+const STORE_NAME = "binary_store";
+
+// Helper to open the database
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+
+    request.onsuccess = (event) => resolve(event.target.result);
+    request.onerror = (event) => reject(event.target.error);
+  });
+}
+
+export async function readCachedBinary(key, maxAgeMs = Infinity) {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_NAME], "readonly");
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.get(key);
+
+      request.onsuccess = () => {
+        const record = request.result;
+        // Check if record exists
+        if (!record) {
+          resolve(null);
+          return;
+        }
+        // Check age
+        if (isFinite(maxAgeMs) && Date.now() - record.ts > maxAgeMs) {
+          resolve(null);
+          return;
+        }
+        // Return the ArrayBuffer directly
+        resolve(record.data);
+      };
+
+      request.onerror = () => {
+        console.warn("IDB Read Error");
+        resolve(null);
+      };
+    });
+  } catch (e) {
+    console.error("Failed to read from cache DB", e);
+    return null;
+  }
+}
+
+export async function writeCachedBinary(key, arrayBuffer) {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_NAME], "readwrite");
+      const store = transaction.objectStore(STORE_NAME);
+
+      // Store the ArrayBuffer directly (no Base64 needed for IDB)
+      const request = store.put({
+        ts: Date.now(),
+        data: arrayBuffer
+      }, key);
+
+      request.onsuccess = () => resolve(true);
+      request.onerror = (e) => {
+        console.error("IDB Write Error:", e);
+        resolve(false);
+      };
+    });
+  } catch (e) {
+    console.error("Failed to write to cache DB", e);
+    return false;
+  }
+}
