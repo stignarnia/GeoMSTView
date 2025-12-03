@@ -49,14 +49,12 @@
     "opacity": 1
   },
   "GIF_EXPORT": {
-    "WORKERS": 2,
-    "QUALITY": 10,
-    "INITIAL_FRAME_DELAY_MS": 500,
+    "MAX_COLORS": 256,
     "CAPTURE_FPS": 15,
     "MAX_CAPTURE_FRAMES": 200,
-    "EDGE_FRAME_DELAY_MS": 200,
-    "FINAL_FRAME_DELAY_MS": 1000,
-    "RENDER_DELAY_MS": 50
+    "INITIAL_FRAME_DELAY_MS": 500,
+    "FINAL_FRAME_DELAY_MS": 500,
+    "RESOLUTION": 1080
   },
   "DEFAULT_CITIES_QUERY": "[out:json][timeout:60];\narea[\"ISO3166-1\"=\"IT\"]->.a;\n(\n  node[\"place\"~\"city|town\"][\"population\"~\"^([5-9][0-9]{4}|[1-9][0-9]{5,})$\"](area.a);\n  way[\"place\"~\"city|town\"][\"population\"~\"^([5-9][0-9]{4}|[1-9][0-9]{5,})$\"](area.a);\n  relation[\"place\"~\"city|town\"][\"population\"~\"^([5-9][0-9]{4}|[1-9][0-9]{5,})$\"](area.a);\n);\nout center tags;",
   "CAPITALS": [

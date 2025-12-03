@@ -9,8 +9,7 @@ import { FFmpeg } from "@ffmpeg/ffmpeg";
 // Constants
 const FFMPEG_MAX_COLORS = 256;
 const FFMPEG_BAYER_SCALE = 5;
-const MIN_FPS = 10;
-const MAX_FPS = 30;
+const MIN_FPS = 1;
 
 let exportModal, exportStatus, exportProgressBar, exportDetails, closeExportModalBtn;
 let exportAbort = null;
@@ -295,7 +294,7 @@ export async function exportAnimationAsGif() {
           try {
             canvas.width = 0;
             canvas.height = 0;
-          } catch (e) {}
+          } catch (e) { }
           resolve(blob);
         }, "image/png");
       });
@@ -303,15 +302,44 @@ export async function exportAnimationAsGif() {
     // Capture all frames as compressed Blobs (less memory than keeping raw canvases)
     const frameBlobs = [];
 
-    // push first frame
-    frameBlobs.push(await canvasToBlob(firstFrame));
+    // Predict captured/dropped using mathematical estimate (before capture)
+    const originalFrameInterval = 1000 / cfg.CAPTURE_FPS;
+    const origInitialCount = Math.round(cfg.INITIAL_FRAME_DELAY_MS / originalFrameInterval);
+    const perEdgeMs = S.animationDelay * S.CFG.EDGE_GROWTH_DURATION_FACTOR;
+    const origMiddleCount = Math.ceil((S.currentMST.length * perEdgeMs) / originalFrameInterval);
+    const origFinalCount = Math.round(cfg.FINAL_FRAME_DELAY_MS / originalFrameInterval);
+    const predictedCaptured = origInitialCount + origMiddleCount + origFinalCount;
+    const predictedDropped = Math.max(0, predictedCaptured - cfg.MAX_CAPTURE_FRAMES);
+
+    // Target: keep 10% more than predicted captured minus dropped (cushion)
+    let targetCaptured = predictedCaptured - predictedDropped;
+    targetCaptured += Math.round(targetCaptured * 0.1);
+    const expectedDrop = Math.max(0, targetCaptured - cfg.MAX_CAPTURE_FRAMES);
+
+    // Adjust capture FPS proportionally to reach targetCaptured (never increase above original)
+    let adjustedFPS = cfg.CAPTURE_FPS * (targetCaptured / predictedCaptured);
+    adjustedFPS = Math.max(MIN_FPS, Math.min(cfg.CAPTURE_FPS, adjustedFPS));
+
+    const captureIntervalMs = Math.max(1, Math.round(1000 / adjustedFPS));
+
+    console.log("[GIF export] predictedCaptured=", predictedCaptured,
+      "predictedDropped=", predictedDropped,
+      "targetCaptured=", targetCaptured,
+      "expectedDrop=", expectedDrop,
+      "originalFPS=", cfg.CAPTURE_FPS,
+      "adjustedFPS=", Number(adjustedFPS.toFixed(2)));
+
+    // push first frame(s) according to adjusted capture interval
+    const initialCount = Math.max(1, Math.round(cfg.INITIAL_FRAME_DELAY_MS / captureIntervalMs));
+    const firstBlob = await canvasToBlob(firstFrame);
+    for (let i = 0; i < initialCount; i++) frameBlobs.push(firstBlob);
 
     // Safety hard cap to avoid runaway capture; set conservatively high but finite
     const HARD_LIMIT = Math.max(cfg.MAX_CAPTURE_FRAMES * 10, 2000);
 
     while (S.animateRafId && frameBlobs.length < HARD_LIMIT) {
       if (exportAbort?.aborted) break;
-      await new Promise((r) => setTimeout(r, Math.round(1000 / cfg.CAPTURE_FPS)));
+      await new Promise((r) => setTimeout(r, captureIntervalMs));
       try {
         const c = await captureMapFrame();
         frameBlobs.push(await canvasToBlob(c));
@@ -329,10 +357,12 @@ export async function exportAnimationAsGif() {
     const duration = Math.max(0, performance.now() - start);
     if (!frameBlobs.length) frameBlobs.push(await canvasToBlob(await captureMapFrame()));
 
-    // add final frame several times to create hold at the end
+    // add final frame(s) according to FINAL_FRAME_DELAY_MS to create hold at the end
     const finalCanvas = await captureMapFrame();
     const finalBlob = await canvasToBlob(finalCanvas);
-    for (let i = 0; i < 10; i++) frameBlobs.push(finalBlob);
+    const finalDelayMs = cfg.FINAL_FRAME_DELAY_MS;
+    const finalCount = Math.max(1, Math.round(finalDelayMs / captureIntervalMs));
+    for (let i = 0; i < finalCount; i++) frameBlobs.push(finalBlob);
 
     if (exportAbort?.aborted) throw new Error("ABORTED");
 
@@ -352,6 +382,14 @@ export async function exportAnimationAsGif() {
     }
 
     const frames = sampledBlobs.map((blob, i) => ({ blob, index: i }));
+
+    // Log actual capture/sample results
+    const actualCaptured = frameBlobs.length;
+    const actualSampled = frames.length;
+    const actualDropped = Math.max(0, actualCaptured - (cfg.MAX_CAPTURE_FRAMES || actualCaptured));
+    console.log("[GIF export] actualCaptured=", actualCaptured,
+      "actualSampled=", actualSampled,
+      "actualDropped=", actualDropped);
 
     updateExportProgress(65, "Writing frames to FFmpeg...", "");
 
@@ -376,16 +414,34 @@ export async function exportAnimationAsGif() {
     let ffmpegFramerate = cfg.CAPTURE_FPS;
     try {
       ffmpegFramerate = (cfg.CAPTURE_FPS * (sampledCount / originalCount)) || ffmpegFramerate;
-    } catch (e) {}
-    ffmpegFramerate = Math.max(MIN_FPS, Math.min(MAX_FPS, ffmpegFramerate));
+    } catch (e) { }
+    ffmpegFramerate = Math.max(MIN_FPS, ffmpegFramerate);
     ffmpegFramerate = Number(ffmpegFramerate.toFixed(2));
+
+    // Read max colors directly from settings (MAX_COLORS) or fallback to constant
+    const maxColors = Number(cfg.MAX_COLORS || FFMPEG_MAX_COLORS);
+
+    // Optional resolution downscale: target longest side (RESOLUTION)
+    // scale only when max(iw,ih) > RES, preserve aspect: compute rounded scaled w/h
+    // Note: the scale expression contains commas inside `if()` calls which
+    // must NOT be treated as filter separators. Escape commas only inside
+    // the scale expression so the rest of the filtergraph separators remain.
+    const scaleFilter = `scale=if(gt(max(iw,ih),${cfg.RESOLUTION}),round(iw*${cfg.RESOLUTION}/max(iw,ih)),-2):if(gt(max(iw,ih),${cfg.RESOLUTION}),round(ih*${cfg.RESOLUTION}/max(iw,ih)),-2)`;
+
+    // Escape commas within the scale expression to avoid splitting the filter
+    // graph at those commas. Do NOT escape the commas that separate filters.
+    const scaleFilterEscaped = scaleFilter.replace(/,/g, "\\,");
+
+    const vfFilter = scaleFilter
+      ? `${scaleFilterEscaped},split[s0][s1];[s0]palettegen=max_colors=${maxColors}[p];[s1][p]paletteuse=dither=bayer:bayer_scale=${FFMPEG_BAYER_SCALE}`
+      : `split[s0][s1];[s0]palettegen=max_colors=${maxColors}[p];[s1][p]paletteuse=dither=bayer:bayer_scale=${FFMPEG_BAYER_SCALE}`;
 
     updateExportProgress(70, "Encoding GIF...", `Encoding at ${ffmpegFramerate} fps`);
 
     await ffmpeg.exec([
       "-framerate", String(ffmpegFramerate),
       "-i", "frame%05d.png",
-      "-vf", `split[s0][s1];[s0]palettegen=max_colors=${FFMPEG_MAX_COLORS}[p];[s1][p]paletteuse=dither=bayer:bayer_scale=${FFMPEG_BAYER_SCALE}`,
+      "-vf", vfFilter,
       "-loop", "0",
       "output.gif"
     ]);
