@@ -2,6 +2,8 @@ import { S } from "./state.js";
 import * as Anim from "./animation.js";
 import * as Render from "./render.js";
 import { resetAnimationState, readCachedBinary, writeCachedBinary } from "./utils.js";
+import { progressManager } from "./progress-manager.js";
+import { fetchWasm } from "./wasm-loader.js";
 
 // 1. Libraries via NPM (as requested)
 import { FFmpeg } from "@ffmpeg/ffmpeg";
@@ -91,6 +93,9 @@ function updateExportProgress(progress, status, details = "") {
   if (exportDetails) exportDetails.textContent = details;
 }
 
+// Ensure the progress manager uses this DOM updater
+progressManager.setUpdater(updateExportProgress);
+
 async function getFFmpeg() {
   if (ffmpegInstance) return ffmpegInstance;
 
@@ -100,11 +105,9 @@ async function getFFmpeg() {
 
   ffmpeg.on("progress", ({ progress }) => {
     if (progress > 0 && progress <= 1) {
-      updateExportProgress(
-        70 + progress * 25,
-        "Encoding...",
-        `${Math.round(progress * 100)}%`
-      );
+      try {
+        progressManager.updateStageProgress("encoding", progress, `${Math.round(progress * 100)}%`, "Encoding...");
+      } catch (e) { }
     }
   });
 
@@ -115,41 +118,20 @@ async function getFFmpeg() {
     const remoteWasmURL = `${baseURL}/ffmpeg-core.wasm`;
     const wasmKey = "ffmpeg_wasm_" + encodeURIComponent(remoteWasmURL);
 
-    let wasmLoadURL = remoteWasmURL;
-    try {
-      const cached = await readCachedBinary(wasmKey);
-      if (cached) {
-        const blob = new Blob([cached], { type: "application/wasm" });
-        wasmLoadURL = URL.createObjectURL(blob);
-      } else {
-        try {
-          const resp = await fetch(remoteWasmURL);
-          if (resp.ok) {
-            const ab = await resp.arrayBuffer();
-            await writeCachedBinary(wasmKey, ab);
-            const blob = new Blob([ab], { type: "application/wasm" });
-            wasmLoadURL = URL.createObjectURL(blob);
-          }
-        } catch (e) {
-          // fallback to remote URL if fetch fails
-          wasmLoadURL = remoteWasmURL;
-        }
-      }
+    // Delegate wasm retrieval (cache or download with progress) to wasm-loader
+    const { wasmLoadURL, isBlob } = await fetchWasm(remoteWasmURL, wasmKey, progressManager, exportAbort);
 
-      await ffmpeg.load({
-        // 2. Pass direct strings, relying on your COOP/COEP headers
-        coreURL: `${baseURL}/ffmpeg-core.js`,
-        wasmURL: wasmLoadURL,
-        workerURL: `${baseURL}/ffmpeg-core.worker.js`,
-      });
+    await ffmpeg.load({
+      // 2. Pass direct strings, relying on your COOP/COEP headers
+      coreURL: `${baseURL}/ffmpeg-core.js`,
+      wasmURL: wasmLoadURL,
+      workerURL: `${baseURL}/ffmpeg-core.worker.js`,
+    });
 
-      // cleanup blob URL if one was created
-      if (wasmLoadURL && wasmLoadURL.startsWith("blob:")) {
-        try {
-          URL.revokeObjectURL(wasmLoadURL);
-        } catch (e) { }
-      }
-    } catch (err) { }
+    // cleanup blob URL if one was created
+    if (isBlob && wasmLoadURL && wasmLoadURL.startsWith("blob:")) {
+      try { URL.revokeObjectURL(wasmLoadURL); } catch (e) { }
+    }
 
     ffmpegInstance = ffmpeg;
     return ffmpeg;
@@ -256,7 +238,7 @@ export async function exportAnimationAsGif() {
   }
 
   showExportModal();
-  updateExportProgress(0, "Preparing...", "");
+  progressManager.setStage("prepare", "Preparing...");
 
   exportAbort = { aborted: false };
   S.exportingGif = true;
@@ -287,12 +269,12 @@ export async function exportAnimationAsGif() {
 
     const cfg = S.CFG.GIF_EXPORT || {};
 
-    updateExportProgress(5, "Loading FFmpeg...", "");
+    progressManager.setStage("loading", "Loading FFmpeg...");
     const ffmpeg = await getFFmpeg();
 
     if (earlyAbortReturn()) return;
 
-    updateExportProgress(10, "Capturing frames...", "");
+    progressManager.setStage("capturing", "Capturing frames...");
 
     const firstFrame = await captureMapFrame();
     if (earlyAbortReturn()) return;
@@ -337,11 +319,10 @@ export async function exportAnimationAsGif() {
     targetCaptured += Math.round(targetCaptured * 0.1);
     const expectedDrop = Math.max(0, targetCaptured - cfg.MAX_CAPTURE_FRAMES);
 
-    // Adjust capture FPS proportionally to reach targetCaptured (never increase above original)
-    let adjustedFPS = cfg.CAPTURE_FPS * (targetCaptured / predictedCaptured);
-    adjustedFPS = Math.max(MIN_FPS, Math.min(cfg.CAPTURE_FPS, adjustedFPS));
+    // Adjust capture FPS proportionally to reach targetCaptured
+    const adjustedFPS = Math.max(MIN_FPS, cfg.CAPTURE_FPS * (targetCaptured / predictedCaptured));
 
-    const captureIntervalMs = Math.max(1, Math.round(1000 / adjustedFPS));
+    const captureIntervalMs = Math.round(1000 / adjustedFPS);
 
     console.log("[GIF export] predictedCaptured=", predictedCaptured,
       "predictedDropped=", predictedDropped,
@@ -355,6 +336,9 @@ export async function exportAnimationAsGif() {
     const firstBlob = await canvasToBlob(firstFrame);
     for (let i = 0; i < initialCount; i++) frameBlobs.push(firstBlob);
 
+    // Update initial progress
+    try { progressManager.updateStageProgress("capturing", Math.min(1, frameBlobs.length / targetCaptured), `${frameBlobs.length}/${targetCaptured}`, "Capturing frames"); } catch (e) { }
+
     // Safety hard cap to avoid runaway capture; set conservatively high but finite
     const HARD_LIMIT = Math.max(cfg.MAX_CAPTURE_FRAMES * 10, 2000);
 
@@ -364,11 +348,7 @@ export async function exportAnimationAsGif() {
       try {
         const c = await captureMapFrame();
         frameBlobs.push(await canvasToBlob(c));
-        updateExportProgress(
-          10 + (frameBlobs.length / Math.max(1, S.currentMST.length)) * 50,
-          "Capturing...",
-          `${frameBlobs.length} frames`
-        );
+        progressManager.updateStageProgress("capturing", Math.min(1, frameBlobs.length / targetCaptured), `${frameBlobs.length}/${targetCaptured}`, "Capturing frames");
         await new Promise((r) => setTimeout(r, 0));
       } catch (e) {
         if (e.message === "CORS_ERROR") throw e;
@@ -387,7 +367,7 @@ export async function exportAnimationAsGif() {
 
     await checkAbortAndThrow();
 
-    updateExportProgress(60, "Preparing frames...", "");
+    progressManager.setStage("writing", "Preparing frames...");
 
     // If we captured more than allowed by config, uniformly sample down to MAX_CAPTURE_FRAMES
     let sampledBlobs = frameBlobs;
@@ -412,7 +392,7 @@ export async function exportAnimationAsGif() {
       "actualSampled=", actualSampled,
       "actualDropped=", actualDropped);
 
-    updateExportProgress(65, "Writing frames to FFmpeg...", "");
+    progressManager.setStage("writing", "Writing frames to FFmpeg...");
 
     for (let i = 0; i < frames.length; i++) {
       const frameData = new Uint8Array(await frames[i].blob.arrayBuffer());
@@ -420,12 +400,8 @@ export async function exportAnimationAsGif() {
 
       await checkAbortAndThrow();
 
-      if (i % 10 === 0) {
-        updateExportProgress(
-          65 + (i / frames.length) * 5,
-          "Writing frames...",
-          `${i + 1}/${frames.length}`
-        );
+      if (i % 1 === 0) {
+        progressManager.updateStageProgress("writing", (i + 1) / frames.length, `${i + 1}/${frames.length}`, "Writing frames...");
       }
     }
 
@@ -461,7 +437,7 @@ export async function exportAnimationAsGif() {
       ? `${scaleFilterEscaped},split[s0][s1];[s0]palettegen=max_colors=${maxColors}[p];[s1][p]paletteuse=dither=bayer:bayer_scale=${FFMPEG_BAYER_SCALE}`
       : `split[s0][s1];[s0]palettegen=max_colors=${maxColors}[p];[s1][p]paletteuse=dither=bayer:bayer_scale=${FFMPEG_BAYER_SCALE}`;
 
-    updateExportProgress(70, "Encoding GIF...", `Encoding at ${ffmpegFramerate} fps`);
+    progressManager.setStage("encoding", `Encoding GIF...`, `Encoding at ${ffmpegFramerate} fps`);
 
     await checkAbortAndThrow();
 
@@ -475,12 +451,12 @@ export async function exportAnimationAsGif() {
 
     await checkAbortAndThrow();
 
-    updateExportProgress(95, "Reading output...", "");
+    progressManager.setStage("reading", "Reading output...");
 
     const data = await ffmpeg.readFile("output.gif");
     const gifBlob = new Blob([data.buffer], { type: "image/gif" });
 
-    updateExportProgress(100, "Done!", "Downloading...");
+    progressManager.absolute(100, "Done!", "Downloading...");
 
     const url = URL.createObjectURL(gifBlob);
     const a = document.createElement("a");
@@ -517,10 +493,6 @@ export async function exportAnimationAsGif() {
 }
 
 export function initExportModal() {
-  initExportModalBase();
-}
-
-function initExportModalBase() {
   initModalElements();
   if (closeExportModalBtn)
     closeExportModalBtn.addEventListener("click", () => {
