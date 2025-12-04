@@ -1,7 +1,7 @@
 import { S } from "./state.js";
 import * as Anim from "./animation.js";
 import * as Render from "./render.js";
-import { resetAnimationState, readCachedBinary, writeCachedBinary } from "./utils.js";
+import { resetAnimationState } from "./utils.js";
 import { progressManager } from "./progress-manager.js";
 import { fetchWasm } from "./wasm-loader.js";
 
@@ -439,7 +439,6 @@ export async function exportAnimationAsGif() {
 
     const initialCount = Math.max(1, Math.round(cfg.INITIAL_FRAME_DELAY_MS / originalFrameInterval));
     let frameCount = 0;
-    let totalPrep = 0, totalAdd = 0;
 
     // --- 3. THE CAPTURE LOOP ---
     progressManager.setStage("capturing", `Capturing frames at ${cfg.CAPTURE_FPS} FPS...`);
@@ -559,7 +558,7 @@ export async function exportAnimationAsGif() {
       cfg
     );
 
-    progressManager.setStage("encoding", `Encoding GIF...`, `Target: ${finalWidth}x${finalHeight} @ ${currentFPS} FPS`);
+    progressManager.setStage("encoding", `Encoding GIF...`, `Target: ${finalWidth}x${finalHeight} @ ${currentFPS} FPS. These may be different from what you expect due to very restrictive memory limits in WebAssembly, we are trying our best to fit your animation within these limits.`);
 
     await checkAbortAndThrow();
 
