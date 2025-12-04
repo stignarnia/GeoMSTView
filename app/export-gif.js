@@ -17,7 +17,7 @@ const MAX_RAW_BYTES_BUDGET = 2 * 1024 * 1024 * 1024;
 // Raw pixel data is 4 bytes per pixel (RGBA)
 const MAX_PIXEL_BUDGET = MAX_RAW_BYTES_BUDGET / 4;
 // We reserve a safety margin for FFmpeg overhead
-const SAFETY_FACTOR = 0.3;
+const SAFETY_FACTOR = 0.45;
 const CONSERVATIVE_PIXEL_BUDGET = MAX_PIXEL_BUDGET * SAFETY_FACTOR;
 
 
@@ -178,7 +178,7 @@ async function getFFmpeg() {
   }
 }
 
-// --- NEW FUNCTION: CALCULATE OPTIMIZED FILTER ---
+// --- CALCULATE OPTIMIZED FILTER ---
 function calculateOptimizedFilter(width, height, frameCount, cfg) {
   const durationSec = frameCount / cfg.CAPTURE_FPS;
 
@@ -251,7 +251,7 @@ function calculateOptimizedFilter(width, height, frameCount, cfg) {
 
   console.log(`[GIF Export] Target: ${targetWidth}x${targetHeight} @ ${currentFPS} FPS (Original: ${width}x${height} @ ${cfg.CAPTURE_FPS} FPS)`);
 
-  return { vfFilter, finalWidth: targetWidth, finalHeight: targetHeight, currentFPS };
+  return { vfFilter, targetWidth, targetHeight, currentFPS };
 }
 
 async function captureMapFrame() {
@@ -459,18 +459,18 @@ export async function exportAnimationAsGif() {
       // Clear temp canvas to free memory
       frameCanvas.width = 0; frameCanvas.height = 0;
 
-      const t1 = performance.now();
+      // const t1 = performance.now();
 
       // C. Feed Mediabunny (Wraps VideoEncoder)
       // .add() snapshots the canvas immediately. The encoding happens asynchronously.
       await videoSource.add(timestampOffsetSec, captureIntervalSec);
 
-      const t2 = performance.now();
+      // const t2 = performance.now();
 
-      totalPrep += (t1 - t0);
-      totalAdd += (t2 - t1);
+      // totalPrep += (t1 - t0);
+      // totalAdd += (t2 - t1);
 
-      console.log(`Frame ${frameCount} | BLOCKING (Prep/Draw): ${Math.round(t1 - t0)}ms | YIELDING (Add/Encode): ${Math.round(t2 - t1)}ms`);
+      // console.log(`Frame ${frameCount} | BLOCKING (Prep/Draw): ${Math.round(t1 - t0)}ms | YIELDING (Add/Encode): ${Math.round(t2 - t1)}ms`);
     };
 
     // Initial Static Frames
@@ -536,8 +536,8 @@ export async function exportAnimationAsGif() {
     console.log("--- MEDIABUNNY RESULTS ---");
     console.log(`Total Wall Time: ${Math.round(duration)}ms`);
     console.log(`Captured Frames: ${actualFrames}`);
-    console.log(`Avg BLOCKING (Draw): ${Math.round(totalPrep / (actualFrames || 1))}ms`);
-    console.log(`Avg YIELDING (Encode): ${Math.round(totalAdd / (actualFrames || 1))}ms`);
+    // console.log(`Avg BLOCKING (Draw): ${Math.round(totalPrep / (actualFrames || 1))}ms`);
+    // console.log(`Avg YIELDING (Encode): ${Math.round(totalAdd / (actualFrames || 1))}ms`);
 
     // Finalize the output to flush encoders and write the file
     await mediaOutput.finalize();
