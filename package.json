@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",
-    "leaflet": "^1.9.4"
+    "leaflet": "^1.9.4",
+    "mediabunny": "^1.25.3"
   }
 }
