@@ -2,7 +2,7 @@ import { S } from "./state.js";
 import { gcKey, greatCirclePoints } from "./shared.js";
 import { computeCitiesKey } from "./utils.js";
 import { postComputeMessage } from "./worker-comm.js";
-import { showSpinner } from "./ui.js";
+import { showSpinner, updateMstTotal } from "./ui.js";
 
 function addWrappedPolyline(latlngs, options, collectArray) {
   if (!latlngs || !latlngs.length) return [];
@@ -235,7 +235,5 @@ export async function renderCities(list, postCompute = true) {
   }
 
   S.animIndex = 0;
-  const total = (S.currentMST || []).reduce((s, e) => s + e.w, 0).toFixed(2);
-  const totalEl = document.getElementById("mstTotal");
-  if (totalEl) totalEl.textContent = "MST total length: " + total + " km";
+  updateMstTotal();
 }

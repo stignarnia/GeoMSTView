@@ -48,6 +48,17 @@ export function updateEditButton() {
   editCustomBtn.setAttribute("aria-hidden", show ? "false" : "true");
 }
 
+export function updateMstTotal(mst = null) {
+  try {
+    const arr = Array.isArray(mst) ? mst : (S.currentMST || []);
+    const total = (arr || []).reduce((s, e) => s + (e.w || 0), 0).toFixed(2);
+    const edges = (arr || []).length;
+    const el = document.getElementById("mstTotal");
+    if (el)
+      el.textContent = "MST total length: " + total + " km — " + edges + " edges";
+  } catch (e) { }
+}
+
 function animateShow(modal) {
   if (!modal) return;
   modal.style.display = "flex";

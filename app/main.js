@@ -11,6 +11,7 @@ import {
   openCustomModal,
   updateEditButton,
   loadSavedQuery,
+  updateMstTotal,
 } from "./ui.js";
 import { exportAnimationAsGif, initExportModal } from "./export-gif.js";
 
@@ -122,9 +123,7 @@ setWorkerMessageHandler((msg) => {
     try {
       Render.redrawCandidateLines();
     } catch (e) { }
-    const total = (S.currentMST || []).reduce((s, e) => s + e.w, 0).toFixed(2);
-    const totalEl = document.getElementById("mstTotal");
-    if (totalEl) totalEl.textContent = "MST total length: " + total + " km";
+    updateMstTotal();
   }
 });
 
