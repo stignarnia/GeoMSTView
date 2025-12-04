@@ -10,7 +10,16 @@ import { Output, WebMOutputFormat, BufferTarget, CanvasSource } from "mediabunny
 
 const FFMPEG_MAX_COLORS = 256;
 const FFMPEG_BAYER_SCALE = 5;
-const MIN_FPS = 1;
+
+// --- NEW MEMORY BUDGET CONSTANT ---
+// Max raw bytes FFmpeg should deal with (2 GB)
+const MAX_RAW_BYTES_BUDGET = 2 * 1024 * 1024 * 1024;
+// Raw pixel data is 4 bytes per pixel (RGBA)
+const MAX_PIXEL_BUDGET = MAX_RAW_BYTES_BUDGET / 4;
+// We reserve a safety margin for FFmpeg overhead
+const SAFETY_FACTOR = 0.3;
+const CONSERVATIVE_PIXEL_BUDGET = MAX_PIXEL_BUDGET * SAFETY_FACTOR;
+
 
 let exportModal, exportStatus, exportProgressBar, exportDetails, closeExportModalBtn;
 let exportAbort = null;
@@ -167,6 +176,82 @@ async function getFFmpeg() {
   } catch (error) {
     throw new Error(`Failed to load FFmpeg MT: ${error.message}`);
   }
+}
+
+// --- NEW FUNCTION: CALCULATE OPTIMIZED FILTER ---
+function calculateOptimizedFilter(width, height, frameCount, cfg) {
+  const durationSec = frameCount / cfg.CAPTURE_FPS;
+
+  // --- 1. INITIAL CLAMP TO MAX RESOLUTION ---
+  // Regardless of budget, we never want to exceed the user's max resolution setting.
+  let targetWidth = width;
+  let targetHeight = height;
+  const maxDim = Math.max(width, height);
+
+  if (maxDim > cfg.MAX_RESOLUTION) {
+    const ratio = cfg.MAX_RESOLUTION / maxDim;
+    targetWidth = Math.round(width * ratio);
+    targetHeight = Math.round(height * ratio);
+  }
+
+  // Current State after initial clamp
+  let currentFPS = cfg.CAPTURE_FPS;
+  let currentResolutionPixels = targetWidth * targetHeight;
+  let currentTotalPixels = currentResolutionPixels * frameCount;
+
+  // --- 2. RESOLUTION SCALING (Primary Fix) ---
+  if (currentTotalPixels > CONSERVATIVE_PIXEL_BUDGET) {
+    console.log(`[GIF Export] Initial total pixels (${(currentTotalPixels / 1024 / 1024).toFixed(1)}MB) exceed budget (${(CONSERVATIVE_PIXEL_BUDGET / 1024 / 1024).toFixed(1)}MB). Applying resolution scaling...`);
+    // Calculate ideal reduction needed to fit budget perfectly
+    const reductionFactor = currentTotalPixels / CONSERVATIVE_PIXEL_BUDGET;
+    const scaleFactor = Math.sqrt(reductionFactor);
+
+    // Apply the aggressive scaling
+    targetWidth = Math.round(targetWidth / scaleFactor);
+    targetHeight = Math.round(targetHeight / scaleFactor);
+
+    // Check if this aggressive scaling drops us below MIN_RESOLUTION
+    const newMaxDim = Math.max(targetWidth, targetHeight);
+
+    if (newMaxDim < cfg.MIN_RESOLUTION) {
+      console.log(`[GIF Export] Resolution scaling dropped below MIN_RESOLUTION (${cfg.MIN_RESOLUTION}px). Applying Resolution Floor and FPS scaling...`);
+      // 1. Disregard the aggressive scaling. Snap to MIN_RESOLUTION instead.
+      const ratio = cfg.MIN_RESOLUTION / Math.max(targetWidth, targetHeight);
+      targetWidth = Math.round(targetWidth * ratio);
+      targetHeight = Math.round(targetHeight * ratio);
+
+      // 2. Recalculate usage at this Resolution Floor
+      currentResolutionPixels = targetWidth * targetHeight;
+
+      // 3. FPS SCALING (Secondary Fix)
+      // Budget = Res * Frames ==> MaxFrames = Budget / Res
+      const maxSafeTotalFrames = Math.floor(CONSERVATIVE_PIXEL_BUDGET / currentResolutionPixels);
+
+      // MaxFrames = Duration * FPS ==> FPS = MaxFrames / Duration
+      currentFPS = Math.floor(maxSafeTotalFrames / durationSec);
+
+      // Clamp to MIN_FPS
+      if (currentFPS < cfg.MIN_FPS) {
+        const needed = (currentTotalPixels / 1024 / 1024).toFixed(1);
+        const limit = (CONSERVATIVE_PIXEL_BUDGET / 1024 / 1024).toFixed(1);
+        throw new Error(`Export too large (${needed}MB > ${limit}MB). Even at ${cfg.MIN_RESOLUTION}px and ${cfg.MIN_FPS}fps, the animation is too long.`);
+      }
+    }
+  }
+
+  // --- 4. FORMAT FFmpeg FILTER STRING ---
+  const maxColors = Number(cfg.MAX_COLORS || FFMPEG_MAX_COLORS);
+
+  // The scale filter must use the calculated resolution.
+  const scaleFilter = `scale=${targetWidth}:${targetHeight}`;
+  const scaleFilterEscaped = scaleFilter.replace(/,/g, "\\,");
+
+  // The full filtergraph
+  const vfFilter = `${scaleFilterEscaped},split[s0][s1];[s0]palettegen=max_colors=${maxColors}[p];[s1][p]paletteuse=dither=bayer:bayer_scale=${FFMPEG_BAYER_SCALE}`;
+
+  console.log(`[GIF Export] Target: ${targetWidth}x${targetHeight} @ ${currentFPS} FPS (Original: ${width}x${height} @ ${cfg.CAPTURE_FPS} FPS)`);
+
+  return { vfFilter, finalWidth: targetWidth, finalHeight: targetHeight, currentFPS };
 }
 
 async function captureMapFrame() {
@@ -330,7 +415,7 @@ export async function exportAnimationAsGif() {
 
     // Add the source to the output
     mediaOutput.addVideoTrack(videoSource, {
-      frameRate: cfg.CAPTURE_FPS || 30, // Metadata hint
+      frameRate: cfg.CAPTURE_FPS, // Metadata hint
     });
 
     // Must start the output before adding frames
@@ -464,15 +549,17 @@ export async function exportAnimationAsGif() {
 
     await checkAbortAndThrow();
 
-    // --- 5. ENCODE GIF FROM VIDEO INPUT ---
-    const maxColors = Number(cfg.MAX_COLORS || FFMPEG_MAX_COLORS);
+    // --- 5. ENCODE GIF FROM VIDEO INPUT with SMART SCALING ---
 
-    // FFmpeg settings
-    const scaleFilter = `scale=if(gt(max(iw,ih),${cfg.RESOLUTION}),round(iw*${cfg.RESOLUTION}/max(iw,ih)),-2):if(gt(max(iw,ih),${cfg.RESOLUTION}),round(ih*${cfg.RESOLUTION}/max(iw,ih)),-2)`;
-    const scaleFilterEscaped = scaleFilter.replace(/,/g, "\\,");
-    const vfFilter = `${scaleFilterEscaped},split[s0][s1];[s0]palettegen=max_colors=${maxColors}[p];[s1][p]paletteuse=dither=bayer:bayer_scale=${FFMPEG_BAYER_SCALE}`;
+    // --- CALCULATE OPTIMIZED FILTERS BASED ON TOTAL FRAMES ---
+    const { vfFilter, finalWidth, finalHeight, currentFPS } = calculateOptimizedFilter(
+      width,
+      height,
+      frameCount,
+      cfg
+    );
 
-    progressManager.setStage("encoding", `Encoding GIF...`, `Converting video to GIF`);
+    progressManager.setStage("encoding", `Encoding GIF...`, `Target: ${finalWidth}x${finalHeight} @ ${currentFPS} FPS`);
 
     await checkAbortAndThrow();
 
@@ -480,8 +567,9 @@ export async function exportAnimationAsGif() {
 
     await ffmpeg.exec([
       '-threads', '4',
+      '-r', String(currentFPS), // Uses calculated FPS (separate arg entries)
       '-i', INPUT_FILENAME,
-      '-vf', vfFilter,
+      '-vf', vfFilter, // Uses calculated scale and color filter
       '-loop', '0',
       OUTPUT_FILENAME
     ]);
