@@ -19,7 +19,8 @@
   },
   "homepage": "https://geomstview.pages.dev",
   "devDependencies": {
-    "vite": "^7.2.6"
+    "vite": "^7.2.6",
+    "vite-plugin-pwa": "^1.2.0"
   },
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",
