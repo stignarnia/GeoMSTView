@@ -80,8 +80,9 @@ npm run dev
 - `settings.json` — configuration defaults (tile server, animation and performance settings).
 - `package.json` — scripts and dependencies.
 - `vite.config.js` — Vite configuration (PWA configuration and headers for the development server).
-- `public/favicon.png` — favicon.
-- `_headers` — Sets correct CORS headers for Cloudflare Pages.
+- `public/` — files that get copied as-is to the build output:
+  - `public/favicon.png` — favicon.
+  - `_headers` — Sets correct CORS headers for Cloudflare Pages.
 - `app/` — ES module sources for the application and worker:
   - `main.js` — application entry (wires UI, worker and rendering).
   - `init.js` — map initialization and theme handling.
