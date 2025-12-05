@@ -97,3 +97,4 @@ npm run dev
   - `ui.js` — UI helper utilities (spinner, controls).
   - `export-gif.js` — GIF export (frame capture and encoding).
   - `wasm-loader.js` — WebAssembly loader (downloads `ffmpeg.wasm` for the conversion from the WebM capture to the GIF format).
+  - `progress-manager.js` — manages progress bar and stages during GIF export.

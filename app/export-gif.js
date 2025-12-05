@@ -551,14 +551,14 @@ export async function exportAnimationAsGif() {
     // --- 5. ENCODE GIF FROM VIDEO INPUT with SMART SCALING ---
 
     // --- CALCULATE OPTIMIZED FILTERS BASED ON TOTAL FRAMES ---
-    const { vfFilter, finalWidth, finalHeight, currentFPS } = calculateOptimizedFilter(
+    const { vfFilter, targetWidth, targetHeight, currentFPS } = calculateOptimizedFilter(
       width,
       height,
       frameCount,
       cfg
     );
 
-    progressManager.setStage("encoding", `Encoding GIF...`, `Target: ${finalWidth}x${finalHeight} @ ${currentFPS} FPS. These may be different from what you expect due to very restrictive memory limits in WebAssembly, we are trying our best to fit your animation within these limits.`);
+    progressManager.setStage("encoding", `Encoding GIF...`, `Target: ${targetWidth}x${targetHeight} @ ${currentFPS} FPS. These may be different from what you expect due to very restrictive memory limits in WebAssembly, we are trying our best to fit your animation within these limits.`);
 
     await checkAbortAndThrow();
 
