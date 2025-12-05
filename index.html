@@ -31,7 +31,7 @@
     <div id="titleText"></div>
     <div class="datasetRow">
       <label for="datasetSelect">Dataset:</label>
-      <wa-select id="datasetSelect" value="capitals">
+      <wa-select id="datasetSelect" value="capitals" size="medium" appearance="outlined">
         <wa-option value="capitals">Region capitals (default)</wa-option>
         <wa-option value="preset">Cities with population &gt; 50k (from OSM)</wa-option>
         <wa-option value="custom">Custom Overpass query...</wa-option>
@@ -44,7 +44,7 @@
     <div id="spinnerText" class="spinnerText" aria-live="polite"></div>
     <div class="datasetRow">
       <label for="algoSelect">Algorithm:</label>
-      <wa-select id="algoSelect" value="prim">
+      <wa-select id="algoSelect" value="prim" size="medium" appearance="outlined">
         <wa-option value="prim">Prim (default)</wa-option>
         <wa-option value="kruskal">Kruskal (slower for big datasets)</wa-option>
       </wa-select>
