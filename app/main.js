@@ -15,6 +15,10 @@ import {
 } from "./ui.js";
 import { exportAnimationAsGif, initExportModal } from "./export-gif.js";
 
+// Import Web Awesome components
+import '@awesome.me/webawesome/dist/components/select/select.js';
+import '@awesome.me/webawesome/dist/components/option/option.js';
+
 let prevDataset = "capitals";
 let initialSavedDataset = null;
 

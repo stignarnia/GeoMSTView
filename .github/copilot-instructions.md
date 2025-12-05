@@ -9,6 +9,7 @@ GeoMSTView is an interactive web application that visualizes Minimum Spanning Tr
 - **Frontend Framework**: Vanilla JavaScript (ES modules)
 - **Build Tool**: Vite
 - **Map Library**: Leaflet
+- **UI Components**: Web Awesome (for select dropdowns)
 - **Progressive Web App**: VitePWA plugin
 - **Data Source**: OpenStreetMap via Overpass API
 - **Heavy Computation**: Web Workers
@@ -59,6 +60,7 @@ GeoMSTView is an interactive web application that visualizes Minimum Spanning Tr
 - Keep functions pure where possible, especially in `shared.js`
 - Use async/await for asynchronous operations
 - Prefer `const` over `let`, avoid `var`
+- **Never put `<script>` tags in HTML files** - all JavaScript imports belong in `.js` files
 
 ### File Organization
 
@@ -202,6 +204,10 @@ GeoMSTView is an interactive web application that visualizes Minimum Spanning Tr
 - **Vite**: Build tool - minimal configuration needed
 - **@ffmpeg/ffmpeg**: WebAssembly FFmpeg - used only in export-gif.js
 - **mediabunny**: Video/canvas capture library for GIF export
+- **@awesome.me/webawesome**: Web component library for UI elements (select dropdowns)
+  - Import components in main.js (not in HTML)
+  - Use `<wa-select>` and `<wa-option>` for dropdowns
+  - Style using CSS custom properties and `::part()` selectors
 
 ## Known Limitations
 

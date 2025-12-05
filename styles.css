@@ -505,20 +505,36 @@ body,
   font-family: var(--font-family, "Fredoka", sans-serif);
 }
 
+/* Fix input field styling to ensure visibility */
+.controls input {
+  background: var(--bg-overlay-light);
+  border: 1px solid var(--border-light);
+  border-radius: var(--btn-border-radius);
+  padding: 4px 8px;
+  color: var(--text-light);
+}
+
 /* Style Web Awesome select components to match the design */
 wa-select {
-  --wa-input-background-color: transparent;
+  --wa-input-background-color: var(--bg-overlay-light);
   --wa-input-border-color: rgba(255, 255, 255, 0.06);
   --wa-input-color: var(--text-light);
   --wa-input-font-family: var(--font-family, "Fredoka", sans-serif);
   --wa-input-border-radius: var(--btn-border-radius);
   --wa-input-height-medium: var(--btn-height);
+  --show-duration: 300ms;
+  --hide-duration: 200ms;
 }
 
 wa-select::part(combobox) {
-  background: transparent;
+  background: var(--bg-overlay-light);
   border-color: rgba(255, 255, 255, 0.06);
   font-size: inherit;
+  transition: background var(--transition-button), border-color var(--transition-button);
+}
+
+wa-select::part(combobox):hover {
+  background: var(--bg-overlay-hover);
 }
 
 wa-select::part(listbox) {
@@ -526,6 +542,18 @@ wa-select::part(listbox) {
   border-color: var(--border-light);
   color: var(--text-light);
   font-family: var(--font-family, "Fredoka", sans-serif);
+  animation: dropdown-appear 0.2s ease-out;
+}
+
+@keyframes dropdown-appear {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 wa-option {
@@ -534,10 +562,12 @@ wa-option {
   --wa-color-neutral-100: var(--bg-overlay-hover);
   color: var(--text-light);
   font-family: var(--font-family, "Fredoka", sans-serif);
+  transition: background 0.15s ease;
 }
 
 wa-option::part(base) {
   color: var(--text-light);
+  transition: background 0.15s ease;
 }
 
 wa-option::part(base):hover {
