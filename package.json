@@ -23,6 +23,7 @@
     "vite-plugin-pwa": "^1.2.0"
   },
   "dependencies": {
+    "@awesome.me/webawesome": "^3.0.0",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "leaflet": "^1.9.4",
     "mediabunny": "^1.25.3"
