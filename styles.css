@@ -522,8 +522,6 @@ wa-select {
   --wa-input-font-family: var(--font-family, "Fredoka", sans-serif);
   --wa-input-border-radius: var(--btn-border-radius);
   --wa-input-height-medium: var(--btn-height);
-  --show-duration: 300ms;
-  --hide-duration: 200ms;
 }
 
 wa-select::part(combobox) {
@@ -542,7 +540,7 @@ wa-select::part(listbox) {
   border-color: var(--border-light);
   color: var(--text-light);
   font-family: var(--font-family, "Fredoka", sans-serif);
-  animation: dropdown-appear 0.2s ease-out;
+  animation: dropdown-appear 200ms ease-out;
 }
 
 @keyframes dropdown-appear {
