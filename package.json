@@ -1,0 +1,30 @@
+{
+  "name": "geomstview",
+  "version": "1.0.0",
+  "description": "Simple interactive demo that computes and visualizes a Minimum Spanning Tree (MST) over a set of cities sourced from OpenStreetMap. The map is rendered with Leaflet and heavy computation (distance matrix, Prim, great-circle points) runs in a Web Worker to keep the UI responsive.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stignarnia/GeoMSTView.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/stignarnia/GeoMSTView/issues"
+  },
+  "homepage": "https://geomstview.pages.dev",
+  "devDependencies": {
+    "vite": "^7.2.6",
+    "vite-plugin-pwa": "^1.2.0"
+  },
+  "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "leaflet": "^1.9.4",
+    "mediabunny": "^1.25.3"
+  }
+}

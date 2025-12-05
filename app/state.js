@@ -1,8 +1,14 @@
 import CFG from "../settings.json" with { type: "json" };
 export const S = {
   CFG,
+  SETTINGS_PREFIX: "mst_",
+  SETTINGS_KEYS: {
+    DATASET: "dataset",
+    ALGORITHM: "algorithm",
+    ENDPOINT: "endpoint",
+    ANIMATION_DELAY: "animationDelay",
+  },
   map: null,
-  // storage keys
   CUSTOM_QUERY_KEY: "overpass_custom_query_v1",
   PRESET_QUERY_KEY: "overpass_preset_query_v1",
   baseTileLayer: null,
@@ -20,7 +26,8 @@ export const S = {
   currentMST: [],
   animIndex: 0,
   animateRafId: null,
-  animateLastStepTs: 0,
+  lastFrameTime: 0,
+  currentFloatIndex: 0,
   animationDelay:
     (CFG.SPEED_RANGE && CFG.SPEED_RANGE.min + CFG.SPEED_RANGE.max - CFG.SPEED_RANGE.default) || 1000,
   lastDatasetView: {
@@ -30,5 +37,6 @@ export const S = {
   gcCacheGlobal: new Map(),
   lastCitiesKey: null,
   computeWorker: null,
-  _neighbors: [],
+  neighbors: [],
+  candidateRedrawAllowed: true,
 };

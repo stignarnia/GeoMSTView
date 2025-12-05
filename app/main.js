@@ -4,31 +4,24 @@ import { createWorker, setWorkerMessageHandler } from "./worker-comm.js";
 import * as Render from "./render.js";
 import * as Anim from "./animation.js";
 import { runQueryAndRender, cacheKeyFromQuery } from "./api.js";
+import { resetAnimationState, removeRecord, getSetting, setSetting, loadAllSettings } from "./utils.js";
 import {
   hideSpinner,
   initCustomModalHandlers,
   openCustomModal,
   updateEditButton,
   loadSavedQuery,
+  updateMstTotal,
 } from "./ui.js";
-import { registerServiceWorker } from "./pwa.js";
+import { exportAnimationAsGif, initExportModal } from "./export-gif.js";
 
 let prevDataset = "capitals";
+let initialSavedDataset = null;
 
 // Initialize CSS variables, map and state
 applyCssVars();
 initMap();
 createWorker();
-
-// centralized reset for animation state (stop + clear)
-function resetAnimationState() {
-  try {
-    Anim.stopAnimation();
-    Render.clearMSTLayers();
-    S.animIndex = 0;
-    Anim.clearCurrentEdgeAnim();
-  } catch (e) {}
-}
 
 // apply saved theme (if any) and ensure map tiles match
 try {
@@ -37,7 +30,7 @@ try {
   let savedTheme = null;
   try {
     savedTheme = localStorage.getItem("theme");
-  } catch (e) {}
+  } catch (e) { }
   if (savedTheme === "light" || savedTheme === "dark") {
     S.currentTheme = savedTheme;
   } else {
@@ -88,35 +81,49 @@ try {
       S.currentTheme = next;
       try {
         localStorage.setItem("theme", next);
-      } catch (e) {}
+      } catch (e) { }
       applyTheme(next);
       animateIconSwap(themeIcon, iconForAction(next));
     });
-} catch (e) {}
+} catch (e) { }
+
+// load saved settings (dataset, algorithm, endpoint, animation speed)
+try {
+  try {
+    const all = loadAllSettings();
+    if (all) {
+      if (all.algorithm) S.currentAlgorithm = all.algorithm;
+      if (all.endpoint) S.CFG.OVERPASS_ENDPOINT = all.endpoint;
+      if (typeof all.animationDelay !== "undefined" && all.animationDelay !== null) {
+        const n = Number(all.animationDelay);
+        if (!Number.isNaN(n)) S.animationDelay = n;
+      }
+      initialSavedDataset = all.dataset || null;
+    }
+  } catch (e) { }
+} catch (e) { }
 
 setWorkerMessageHandler((msg) => {
   if (msg.type === "result") {
     try {
       hideSpinner();
-    } catch (e) {}
+    } catch (e) { }
     (msg.candidates || []).forEach((item) => {
       try {
         S.gcCacheGlobal.set(item.key, item.latlngs);
-      } catch (e) {}
+      } catch (e) { }
     });
     (msg.mstLatlngs || []).forEach((item) => {
       try {
         S.gcCacheGlobal.set(item.key, item.latlngs);
-      } catch (e) {}
+      } catch (e) { }
     });
-    S._neighbors = msg.neighbors || [];
+    S.neighbors = msg.neighbors || [];
     S.currentMST = msg.mst || [];
     try {
       Render.redrawCandidateLines();
-    } catch (e) {}
-    const total = (S.currentMST || []).reduce((s, e) => s + e.w, 0).toFixed(2);
-    const totalEl = document.getElementById("mstTotal");
-    if (totalEl) totalEl.textContent = "MST total length: " + total + " km";
+    } catch (e) { }
+    updateMstTotal();
   }
 });
 
@@ -131,6 +138,16 @@ document.getElementById("reset").addEventListener("click", () => {
     S.map.setView(S.lastDatasetView.center, S.lastDatasetView.zoom);
   } catch (e) {
     S.map.setView(S.CFG.MAP_DEFAULT_CENTER, S.CFG.MAP_DEFAULT_ZOOM);
+  }
+});
+
+// Wire export GIF button
+document.getElementById("exportGif").addEventListener("click", async () => {
+  try {
+    await exportAnimationAsGif();
+  } catch (e) {
+    console.error("Export failed:", e);
+    alert("Failed to export GIF: " + e.message);
   }
 });
 
@@ -150,10 +167,10 @@ initCustomModalHandlers({
       if (reason === "cancel") {
         try {
           document.getElementById("datasetSelect").value = prevDataset;
-        } catch (e) {}
+        } catch (e) { }
       }
       updateEditButton();
-    } catch (e) {}
+    } catch (e) { }
   },
 });
 // Collapse toggle wiring
@@ -170,7 +187,7 @@ try {
       );
     });
   }
-} catch (e) {}
+} catch (e) { }
 
 // Invalidate cache button wiring
 try {
@@ -185,11 +202,11 @@ try {
           const ta = document.getElementById("customQuery");
           if (ta && ta.value) query = ta.value;
           else {
-            const saved = localStorage.getItem(S.CUSTOM_QUERY_KEY);
-            query = saved || (S && S.CFG && S.CFG.DEFAULT_CITIES_QUERY) || "";
+            // loadSavedQuery is async and will provide a default if missing
+            query = (await loadSavedQuery(S.CUSTOM_QUERY_KEY)) || (S && S.CFG && S.CFG.DEFAULT_CITIES_QUERY) || "";
           }
         } else if (datasetSelect.value === "preset") {
-          query = loadSavedQuery(S.PRESET_QUERY_KEY);
+          query = await loadSavedQuery(S.PRESET_QUERY_KEY);
         } else {
           alert("No cached query for this dataset to invalidate.");
           return;
@@ -200,18 +217,18 @@ try {
         }
         const key = await cacheKeyFromQuery(query);
         try {
-          localStorage.removeItem(key);
-        } catch (e) {}
+          await removeRecord(key);
+        } catch (e) { }
         try {
           S.gcCacheGlobal.clear();
-        } catch (e) {}
+        } catch (e) { }
         alert("Cache invalidated for current query.");
       } catch (e) {
         console.error(e);
         alert("Error invalidating cache");
       }
     });
-} catch (e) {}
+} catch (e) { }
 
 document.getElementById("editCustom").addEventListener("click", () => {
   prevDataset = document.getElementById("datasetSelect").value;
@@ -228,6 +245,7 @@ document
     updateEditButton();
     // ensure animation state reset when dataset changes
     resetAnimationState();
+    try { setSetting(S.SETTINGS_KEYS.DATASET, v); } catch (e) { }
     if (v === "custom") {
       openCustomModal();
       return;
@@ -238,10 +256,8 @@ document
       Render.renderCities(S.CFG.CAPITALS);
       S.map.setView(S.CFG.MAP_DEFAULT_CENTER, S.CFG.MAP_DEFAULT_ZOOM);
     } else if (v === "preset") {
-      await runQueryAndRender(
-        loadSavedQuery(S.PRESET_QUERY_KEY),
-        "Error fetching preset: "
-      );
+      const presetQ = await loadSavedQuery(S.PRESET_QUERY_KEY);
+      await runQueryAndRender(presetQ, "Error fetching preset: ");
     }
   });
 
@@ -249,17 +265,21 @@ document
 try {
   const algoSel = document.getElementById("algoSelect");
   if (algoSel) {
+    try {
+      algoSel.value = S.currentAlgorithm;
+    } catch (e) { }
     algoSel.addEventListener("change", (e) => {
       S.currentAlgorithm = e.target.value;
+      try { setSetting(S.SETTINGS_KEYS.ALGORITHM, e.target.value); } catch (err) { }
       resetAnimationState();
       try {
         // re-run compute/render for the currently loaded cities so the
         // change in algorithm takes effect immediately
         Render.renderCities(S.currentCities);
-      } catch (err) {}
+      } catch (err) { }
     });
   }
-} catch (e) {}
+} catch (e) { }
 
 // Endpoint input wiring
 try {
@@ -270,33 +290,50 @@ try {
   endpointInput &&
     endpointInput.addEventListener("input", (e) => {
       S.CFG.OVERPASS_ENDPOINT = e.target.value.trim();
+      try { setSetting(S.SETTINGS_KEYS.ENDPOINT, e.target.value.trim()); } catch (err) { }
     });
   resetEndpointBtn &&
     resetEndpointBtn.addEventListener("click", () => {
       if (endpointInput) endpointInput.value = DEFAULT_ENDPOINT;
       S.CFG.OVERPASS_ENDPOINT = DEFAULT_ENDPOINT;
+      try { setSetting(S.SETTINGS_KEYS.ENDPOINT, DEFAULT_ENDPOINT); } catch (err) { }
     });
-} catch (e) {}
+} catch (e) { }
 
 // initialize
-Render.renderCities(S.CFG.CAPITALS);
+// Initialize dataset based on saved preference (if any)
+(async () => {
+  try {
+    const ds = initialSavedDataset;
+    if (ds === "preset") {
+      try { const sel = document.getElementById("datasetSelect"); if (sel) sel.value = "preset"; } catch (e) { }
+      const presetQ = await loadSavedQuery(S.PRESET_QUERY_KEY);
+      await runQueryAndRender(presetQ, "Error fetching preset: ");
+    } else if (ds === "custom") {
+      try { const sel = document.getElementById("datasetSelect"); if (sel) sel.value = "custom"; } catch (e) { }
+      const q = await loadSavedQuery(S.CUSTOM_QUERY_KEY);
+      await runQueryAndRender(q, "Error fetching custom: ");
+    } else {
+      try { const sel = document.getElementById("datasetSelect"); if (sel) sel.value = "capitals"; } catch (e) { }
+      Render.renderCities(S.CFG.CAPITALS);
+      try { S.map.setView(S.CFG.MAP_DEFAULT_CENTER, S.CFG.MAP_DEFAULT_ZOOM); } catch (e) { }
+    }
+  } catch (e) {
+    try { Render.renderCities(S.CFG.CAPITALS); } catch (err) { }
+  }
+})();
 try {
   updateEditButton();
-} catch (e) {}
+} catch (e) { }
 try {
   document.getElementById("titleText").textContent = S.CFG.TITLE_TEXT;
-} catch (e) {}
+} catch (e) { }
 try {
   document.getElementById("spinnerText").textContent = S.CFG.SPINNER_TEXT;
-} catch (e) {}
+} catch (e) { }
 try {
   document.title = S.CFG.TITLE_TEXT;
-} catch (e) {}
-
-// Register service worker from the module (resolves SW path relative to this file)
-try {
-  registerServiceWorker();
-} catch (e) {}
+} catch (e) { }
 
 // Wire animation speed slider (read values only from settings)
 try {
@@ -319,7 +356,7 @@ try {
       } else if (typeof speedCfg.default !== "undefined") {
         speedRange.value = speedCfg.default;
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const applyValue = (val) => {
       try {
@@ -334,11 +371,17 @@ try {
     // initialize from state
     try {
       if (typeof speedRange.value !== "undefined") applyValue(speedRange.value);
-    } catch (e) {}
+    } catch (e) { }
 
     speedRange.addEventListener("input", (e) => {
       const v = e.target.value;
       applyValue(v);
+      try { setSetting(S.SETTINGS_KEYS.ANIMATION_DELAY, S.animationDelay); } catch (err) { }
     });
   }
-} catch (e) {}
+} catch (e) { }
+
+// Initialize export modal
+try {
+  initExportModal();
+} catch (e) { }

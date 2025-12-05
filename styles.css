@@ -6,6 +6,7 @@ body,
   margin: 0;
   padding: 0;
   background: var(--bg-map);
+  font-family: var(--font-family, "Fredoka", sans-serif);
 }
 
 /* Controls panel */
@@ -66,6 +67,7 @@ body,
 .modalBtn:hover {
   background: var(--btn-variant-hover, var(--bg-overlay-hover));
 }
+
 .modalBtn:active {
   background: var(--btn-variant-active, var(--bg-overlay-active));
 }
@@ -167,6 +169,7 @@ body,
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -182,6 +185,7 @@ body,
   transition: margin-bottom var(--transition-expand);
   position: relative;
 }
+
 #titleText::after {
   content: "";
   position: absolute;
@@ -189,15 +193,14 @@ body,
   right: 0;
   width: var(--title-overlay-width);
   height: var(--title-overlay-height);
-  background: linear-gradient(
-    to right,
-    transparent,
-    var(--title-overlay-color) var(--title-overlay-gradient-stop)
-  );
+  background: linear-gradient(to right,
+      transparent,
+      var(--title-overlay-color) var(--title-overlay-gradient-stop));
   opacity: 0;
   transition: opacity var(--transition-expand);
   pointer-events: none;
 }
+
 .controls.collapsed #titleText {
   opacity: var(--opacity-visible);
   transform: none;
@@ -205,27 +208,31 @@ body,
   margin-bottom: 0;
   transition: margin-bottom var(--transition-collapse);
 }
+
 .controls.collapsed #titleText::after {
   opacity: 1;
   transition: opacity var(--transition-collapse);
 }
+
 .datasetRow {
   display: flex;
   align-items: center;
   gap: var(--gap-medium);
 }
+
 .datasetRow label {
   width: var(--label-width);
 }
+
 #datasetSelect,
 #algoSelect,
 #endpointInput {
   flex: 1;
 }
+
 #editCustom {
   opacity: 0;
-  transform: translateY(calc(-1 * var(--anim-offset-y)))
-    scale(var(--anim-scale));
+  transform: translateY(calc(-1 * var(--anim-offset-y))) scale(var(--anim-scale));
   transition: opacity var(--transition-expand),
     transform var(--transition-expand);
   pointer-events: none;
@@ -237,26 +244,31 @@ body,
   transform: translateY(0) scale(1);
   pointer-events: auto;
 }
+
 .algoSpacer {
   width: var(--btn-min-width);
 }
+
 .speedRow {
   display: flex;
   align-items: center;
   gap: var(--gap-medium);
   margin-top: var(--gap-medium);
 }
+
 #mstTotal {
   margin-top: var(--gap-small);
   font-weight: var(--font-weight-semibold);
   color: var(--text-secondary);
 }
+
 .controls .description {
   max-width: var(--description-max-width);
   margin-top: var(--gap-medium);
   font-size: var(--font-size-description);
   color: var(--text-tertiary);
 }
+
 #customModal {
   display: none;
   position: fixed;
@@ -269,36 +281,68 @@ body,
   justify-content: center;
   z-index: var(--z-modal);
 }
+
+/* Export modal mirror of customModal so it's positioned and visible */
+#exportModal {
+  display: none;
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--modal-bg);
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--modal-anim-ms) ease-out;
+}
+
+#exportModal.visible {
+  display: flex;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#exportModal.visible .modalContent {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
 .modalContent {
   will-change: transform, opacity;
 }
+
 /* Animated visibility for modal */
 #customModal {
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--modal-anim-ms) ease-out;
 }
+
 #customModal.visible {
   display: flex;
   opacity: 1;
   pointer-events: auto;
 }
+
 .modalContent {
   transform: translateY(var(--anim-offset-y)) scale(var(--anim-scale));
   opacity: 0;
   transition: transform var(--modal-anim-ms) ease-out,
     opacity var(--modal-anim-ms) ease-out;
 }
+
 #customModal.visible .modalContent {
   transform: translateY(0) scale(1);
   opacity: 1;
 }
+
 .modalContent {
-  background: linear-gradient(
-    180deg,
-    var(--modal-content-bg-start),
-    var(--modal-content-bg-end)
-  );
+  background: linear-gradient(180deg,
+      var(--modal-content-bg-start),
+      var(--modal-content-bg-end));
   padding: var(--modal-content-padding);
   border-radius: var(--controls-border-radius);
   max-width: var(--modal-content-max-width);
@@ -307,17 +351,20 @@ body,
   position: relative;
   box-sizing: border-box;
 }
+
 .modalHeader {
   display: flex;
   align-items: center;
   gap: var(--gap-medium);
   margin-bottom: var(--gap-medium);
 }
+
 .modalButtons {
   display: flex;
   gap: var(--gap-small);
   align-items: center;
 }
+
 .themeIcon {
   display: inline-block;
   transition: transform var(--transition-theme-icon),
@@ -325,11 +372,12 @@ body,
   will-change: transform, opacity;
   opacity: var(--opacity-visible);
 }
+
 .themeIcon.fade-out {
-  transform: rotate(var(--transform-icon-rotate))
-    scale(var(--transform-icon-scale));
+  transform: rotate(var(--transform-icon-rotate)) scale(var(--transform-icon-scale));
   opacity: var(--opacity-collapsed);
 }
+
 .themeIcon.fade-in {
   transform: rotate(0deg) scale(1);
   opacity: var(--opacity-visible);
@@ -355,39 +403,45 @@ body,
   transition: background var(--transition-collapse-bg);
   z-index: var(--z-collapse-btn);
 }
+
 .collapseToggle:hover {
   background: var(--bg-overlay-hover);
 }
+
 .collapseToggle:active {
   background: var(--bg-overlay-active);
 }
+
 .collapseArrow {
   display: inline-block;
   transition: transform var(--transition-expand);
   will-change: transform;
 }
+
 .controls.collapsed .collapseArrow {
   transform: rotate(var(--transform-arrow-rotate));
   transition: transform var(--transition-collapse);
 }
 
 /* Collapsible content wrapper */
-.controls > *:not(.collapseToggle):not(#titleText) {
+.controls>*:not(.collapseToggle):not(#titleText) {
   transition: opacity var(--transition-expand),
     transform var(--transition-expand);
   overflow: hidden;
 }
-.controls.collapsed > *:not(.collapseToggle):not(#titleText) {
+
+.controls.collapsed>*:not(.collapseToggle):not(#titleText) {
   opacity: var(--opacity-collapsed);
   transform: translateY(var(--transform-collapse-y));
   pointer-events: none;
   transition: opacity var(--transition-collapse),
     transform var(--transition-collapse);
 }
+
 .customQueryArea {
   width: 100%;
   height: var(--query-area-height);
-  font-family: monospace;
+  font-family: var(--font-family, "Fredoka", sans-serif);
   font-size: var(--font-size-query);
   text-align: left;
   background: var(--query-area-bg);
@@ -404,4 +458,75 @@ body,
 .leaflet-interactive.highlight-marker {
   transition: stroke-opacity var(--transition-fade),
     fill-opacity var(--transition-fade), opacity var(--transition-fade);
+}
+
+/* Export modal specific styles */
+.exportModalContent {
+  min-width: 400px;
+  min-height: 150px;
+}
+
+.exportStatus {
+  margin-bottom: var(--gap-medium);
+  font-size: var(--font-size-description);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.exportProgressContainer {
+  width: 100%;
+  height: 24px;
+  background: var(--query-area-bg);
+  border: 1px solid var(--border-lighter);
+  border-radius: var(--btn-border-radius);
+  overflow: hidden;
+  margin-bottom: var(--gap-medium);
+}
+
+.exportProgressBar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--btn-ok-bg), var(--btn-ok-hover));
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.exportDetails {
+  font-size: var(--font-size-spinner-text);
+  color: var(--text-tertiary);
+  text-align: center;
+  min-height: 1.5em;
+}
+
+/* Ensure selects, options and inputs inside controls use the configured font and readable text color */
+.controls select,
+.controls input,
+.controls textarea,
+.controls option,
+#datasetSelect,
+#algoSelect {
+  color: var(--text-light);
+  font-family: var(--font-family, "Fredoka", sans-serif);
+  background: transparent;
+}
+
+/* Options can have a darker panel background to improve contrast in native dropdowns */
+.controls select option {
+  color: var(--text-light);
+  background: var(--bg-panel);
+}
+
+/* Buttons should use the same app font only (no other style overrides) */
+.controls button,
+.modalBtn,
+.btnOk,
+.btnClose,
+.btnRevert {
+  font-family: var(--font-family, "Fredoka", sans-serif);
+}
+
+/* Hide UI elements during export */
+.exporting-gif .controls,
+.exporting-gif .leaflet-control-container {
+  opacity: 0 !important;
+  pointer-events: none !important;
 }

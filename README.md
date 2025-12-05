@@ -10,6 +10,27 @@ Simple interactive demo that computes and visualizes a Minimum Spanning Tree (MS
 4. Choose a dataset from the `Dataset` control: `capitals` (built-in sample), `preset` (a larger preset Overpass query), or `custom` to paste/run your own Overpass QL query.
 5. Press the ▶ `Start` button to animate MST edges being added. Use `Reset` to clear the animation or `🗑` to invalidate cached Overpass results for the current query.
 6. Use the `Animation speed` slider to slow down or speed up the edge animation.
+7. Press the 📹 `Export GIF` button to export the animation as a downloadable GIF file.
+
+## GIF Export
+
+The GIF export feature allows you to download the MST animation as an animated GIF file:
+
+- Click the 📹 button in the control panel to start the export process.
+- The UI will be hidden during frame capture.
+- A progress bar will show the status.
+- The GIF will automatically download when complete.
+- Export uses the current map view (center and zoom level).
+- It will aim for `1080p@15fps` which is amazing for a GIF, but it will throttle down with the animation duration due to WebAssembly memory limitations (it may even run out of memory entirely on extremely long animations).
+
+If running locally, export settings can be configured in `settings.json` under the `GIF_EXPORT` key:
+
+- `MAX_COLORS`: Maximum GIF palette colors (default: 256). Limits encoder palette size to bound memory and file size.
+- `CAPTURE_FPS`: Target capture frames per second (default: 15).
+- `MIN_FPS`: Minimum allowed frames per second (default: 10). If reducing the resolution is not enough to fit memory limits, frames per second will be reduced, if the required reduction brings it below this value, an error will be thrown.
+- `INITIAL_FRAME_DELAY_MS` / `FINAL_FRAME_DELAY_MS`: How long to keep the first and final frames visible (default 500ms each).
+- `MAX_RESOLUTION`: Target export resolution in pixels (default: 1080).
+- `MIN_RESOLUTION`: Minimum export resolution in pixels (default: 480). Resolution is the first to be throttled if memory limits are hit.
 
 ## Custom Overpass queries
 
@@ -25,11 +46,12 @@ If you want to change default behavior (tile server, animation defaults, k-neare
 
 Key `CFG` entries you might change:
 
-- `TILE_URL`: map tile server URL (default: Carto dark tiles).
-- `CACHE_TTL_MS`: how long Overpass results are kept in `localStorage` (milliseconds).
+- `TILE_URL`: map tile server URL (default: Carto dark tiles). You may get `CORS` errors if the tile server does not allow cross-origin requests, which are needed for exporting GIFs but apply to the whole website.
+- `CACHE_TTL_MS`: how long Overpass results are kept in `IndexedDB` (milliseconds).
 - `SPEED_RANGE`: slider configuration and default value (min/max/step/default). Note: the code maps the slider inversely to animation delay.
 - `K_MIN`, `K_MAX`, `HOLD_LEVELS`, `TARGET_ZOOM_OFFSET`: control how many candidate neighbor lines are shown at different zoom levels.
 - `GC_*` values (`GC_MIN_SEGMENTS`, `GC_MAX_SEGMENTS`, `GC_SEGMENT_FACTOR`): control visual segmentation for great-circle curves between cities.
+- Many more, including most `CSS` variables used for theming.
 
 After editing `settings.json`, reload the page.
 
@@ -40,37 +62,39 @@ After editing `settings.json`, reload the page.
 
 ## Serving locally (required if not using the hosted demo)
 
-As an example, a quick way to make a local static server:
+This project must be built and served over HTTP (double-clicking `index.html` will not work).
+
+Quick options to run it, after [installing Node.js](https://nodejs.org/en/download/current):
 
 ```bash
-python -m http.server 8000
-# then open http://localhost:8000 in your browser
+npm install
+npm run dev
+
+# then open the URL printed by the command (usually http://localhost:5173)
 ```
 
-## Files
-
-- `index.html` — page entry and layout.
-- `styles.css` — UI styles.
-- `script.js` — main UI logic, Leaflet rendering, caching and worker communication.
-- `worker.js` — performs MST, distance computations and great-circle point generation in a worker.
-- `shared.js` — math helpers shared between main thread and worker (`haversine`, `greatCirclePoints`, `dedent`, `gcKey`).
-
-## Files
+## Project files
 
 - `index.html` — page entry and layout.
 - `styles.css` — UI styles.
 - `settings.json` — configuration defaults (tile server, animation and performance settings).
+- `package.json` — scripts and dependencies.
+- `vite.config.js` — Vite configuration (PWA configuration and headers for the development server).
+- `public/` — files that get copied as-is to the build output:
+  - `public/favicon.png` — favicon.
+  - `_headers` — Sets correct CORS headers for Cloudflare Pages.
 - `app/` — ES module sources for the application and worker:
-  - `app/main.js` — application entry (wires UI, worker and rendering).
-  - `app/init.js` — map initialization and theme handling.
-  - `app/render.js` — rendering and layer management (markers, candidate/MST drawing).
-  - `app/animation.js` — animation logic for growing MST edges.
-  - `app/worker.js` — Web Worker implementation (MST, distances, great-circle points).
-  - `app/shared.js` — pure math helpers shared between main thread and worker (`haversine`, `greatCirclePoints`, `gcKey`, `dedent`).
-  - `app/utils.js` — app utility helpers (`computeCitiesKey`, `lerpColor`, wrappers).
-  - `app/worker-comm.js` — worker creation and messaging helpers.
-  - `app/state.js` — shared runtime state object.
-  - `app/api.js` — Overpass fetch, caching and query helpers.
-  - `app/ui.js` — small UI helpers (spinner etc.).
-- `LICENSE` — project license.
-- `README.md` — this file.
+  - `main.js` — application entry (wires UI, worker and rendering).
+  - `init.js` — map initialization and theme handling.
+  - `render.js` — rendering and layer management (markers, candidate/MST drawing).
+  - `animation.js` — animation logic for growing MST edges.
+  - `worker.js` — Web Worker implementation (MST, distances, great-circle points).
+  - `shared.js` — pure math helpers shared between main thread and worker (`haversine`, `greatCirclePoints`, `gcKey`, `dedent`).
+  - `utils.js` — utility helpers (`computeCitiesKey`, `lerpColor`, wrappers).
+  - `worker-comm.js` — worker creation and messaging helpers.
+  - `state.js` — shared runtime state object.
+  - `api.js` — Overpass fetch, caching and query helpers.
+  - `ui.js` — UI helper utilities (spinner, controls).
+  - `export-gif.js` — GIF export (frame capture and encoding).
+  - `wasm-loader.js` — WebAssembly loader (downloads `ffmpeg.wasm` for the conversion from the WebM capture to the GIF format).
+  - `progress-manager.js` — manages progress bar and stages during GIF export.

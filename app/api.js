@@ -1,6 +1,7 @@
 import { S } from "./state.js";
 import { showSpinner, hideSpinner } from "./ui.js";
 import { renderCities } from "./render.js";
+import { getRecord, putRecord, removeRecord } from "./utils.js";
 
 export async function fetchOverpass(query, cacheKey) {
   const endpoint = S.CFG.OVERPASS_ENDPOINT;
@@ -8,18 +9,12 @@ export async function fetchOverpass(query, cacheKey) {
   params.append("data", query);
   const TTL = S.CFG.CACHE_TTL_MS;
   try {
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (parsed && parsed.ts && Array.isArray(parsed.items)) {
-        if (Date.now() - parsed.ts < TTL) return parsed.items;
-        else
-          try {
-            localStorage.removeItem(cacheKey);
-          } catch (e) {}
-      }
+    const cached = await getRecord(cacheKey);
+    if (cached && cached.ts && Array.isArray(cached.items)) {
+      if (Date.now() - cached.ts < TTL) return cached.items;
+      else await removeRecord(cacheKey);
     }
-  } catch (e) {}
+  } catch (e) { }
   try {
     showSpinner(undefined, S.CFG.SPINNER_TEXT);
     const resp = await fetch(endpoint, {
@@ -49,8 +44,8 @@ export async function fetchOverpass(query, cacheKey) {
       })
       .filter((c) => Number.isFinite(c.lat) && Number.isFinite(c.lon));
     try {
-      localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), items }));
-    } catch (e) {}
+      await putRecord(cacheKey, { ts: Date.now(), items });
+    } catch (e) { }
     return items;
   } catch (err) {
     let statusCode = err.status || "Network";

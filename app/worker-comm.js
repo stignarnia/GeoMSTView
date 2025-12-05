@@ -6,7 +6,7 @@ export function createWorker() {
   S.computeWorker = new Worker(new URL("./worker.js", import.meta.url), {
     type: "module",
   });
-  S.computeWorker._neighbors = [];
+  S.computeWorker.neighbors = [];
   S.computeWorker.addEventListener("error", (e) => {
     // Provide more info about worker load/runtime errors
     try {

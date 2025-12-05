@@ -1,32 +1,41 @@
 import { S } from "./state.js";
-import { gcKey, greatCirclePoints, computeCitiesKey } from "./utils.js";
+import { gcKey, greatCirclePoints } from "./shared.js";
+import { computeCitiesKey } from "./utils.js";
 import { postComputeMessage } from "./worker-comm.js";
-import { showSpinner } from "./ui.js";
+import { showSpinner, updateMstTotal } from "./ui.js";
 
 function addWrappedPolyline(latlngs, options, collectArray) {
   if (!latlngs || !latlngs.length) return [];
   const parts = [];
   let seg = [latlngs[0]];
+  // helper to unify renderer/pane for candidate and mst styles
+  const getPolyOpts = (opts) => {
+    const polyOpts = Object.assign({}, opts);
+    try {
+      if (opts === S.CFG.CANDIDATE_STYLE) {
+        // Force candidates to use the MST canvas renderer and pane
+        polyOpts.renderer = S.mstCanvasRenderer;
+        polyOpts.pane = "mstPane";
+      } else if (opts === S.CFG.MST_STYLE) {
+        polyOpts.renderer = S.mstCanvasRenderer;
+        polyOpts.pane = "mstPane";
+      }
+    } catch (e) { }
+    return polyOpts;
+  };
+
   for (let i = 1; i < latlngs.length; i++) {
     const prevLon = latlngs[i - 1][1];
     const curLon = latlngs[i][1];
     const rawDiff = curLon - prevLon;
     if (Math.abs(rawDiff) > S.CFG.WRAP_LON_THRESHOLD) {
-      const polyOpts = Object.assign({}, options);
-      try {
-        if (options === S.CFG.CANDIDATE_STYLE)
-          polyOpts.renderer = S.candidateCanvasRenderer;
-        else if (options === S.CFG.MST_STYLE) {
-          polyOpts.renderer = S.mstCanvasRenderer;
-          polyOpts.pane = "mstPane";
-        }
-      } catch (e) {}
+      const polyOpts = getPolyOpts(options);
       const parent =
         options === S.CFG.CANDIDATE_STYLE
           ? S.candidateLayerGroup
           : options === S.CFG.MST_STYLE
-          ? S.mstLayerGroup
-          : S.map;
+            ? S.mstLayerGroup
+            : S.map;
       const p = L.polyline(seg, polyOpts).addTo(parent);
       parts.push(p);
       if (Array.isArray(collectArray)) collectArray.push(p);
@@ -36,14 +45,13 @@ function addWrappedPolyline(latlngs, options, collectArray) {
     }
   }
   if (seg.length) {
-    const polyOpts = Object.assign({}, options);
-    if (options === S.CFG.MST_STYLE) polyOpts.pane = "mstPane";
+    const polyOpts = getPolyOpts(options);
     const parent =
       options === S.CFG.CANDIDATE_STYLE
         ? S.candidateLayerGroup
         : options === S.CFG.MST_STYLE
-        ? S.mstLayerGroup
-        : S.map;
+          ? S.mstLayerGroup
+          : S.map;
     const p = L.polyline(seg, polyOpts).addTo(parent);
     parts.push(p);
     if (Array.isArray(collectArray)) collectArray.push(p);
@@ -56,11 +64,13 @@ export function clearLayers() {
   S.markers.length = 0;
   try {
     S.candidateLayerGroup.clearLayers();
-  } catch (e) {}
+  } catch (e) { }
   S.candidateLines.length = 0;
+  // ensure k-nearest recomputes after a dataset change/clear
+  try { S.lastKNearest = null; } catch (e) { }
   try {
     S.mstLayerGroup.clearLayers();
-  } catch (e) {}
+  } catch (e) { }
   S.mstLines.length = 0;
   S.highlightMarkers.forEach((h) => S.map.removeLayer(h));
   S.highlightMarkers.length = 0;
@@ -71,18 +81,15 @@ export function clearLayers() {
 export function clearMSTLayers() {
   try {
     S.mstLayerGroup.clearLayers();
-  } catch (e) {}
+  } catch (e) { }
   S.mstLines.length = 0;
   S.highlightMarkers.forEach((h) => S.map.removeLayer(h));
   S.highlightMarkers.length = 0;
 }
 
 export function redrawCandidateLines() {
-  try {
-    S.candidateLayerGroup.clearLayers();
-  } catch (e) {}
-  S.candidateLines.length = 0;
   if (!S.currentCities || !S.currentCities.length) return;
+  if (!S.candidateRedrawAllowed) return;
   const n = S.currentCities.length;
   const minZ =
     typeof S.map.getMinZoom === "function" ? S.map.getMinZoom() ?? 0 : 0;
@@ -102,7 +109,15 @@ export function redrawCandidateLines() {
     kNearest = S.CFG.K_MIN + Math.round(frac * (S.CFG.K_MAX - S.CFG.K_MIN));
     kNearest = Math.max(S.CFG.K_MIN, Math.min(S.CFG.K_MAX, kNearest));
   }
-  const neighbors = S._neighbors || [];
+
+  // avoid unnecessary redraws on zooms that don't change kNearest
+  if (S.lastKNearest === kNearest) return;
+
+  try {
+    S.candidateLayerGroup.clearLayers();
+  } catch (e) { }
+  S.candidateLines.length = 0;
+  const neighbors = S.neighbors || [];
   if (!Array.isArray(neighbors) || neighbors.length !== n) return;
   for (let i = 0; i < n; i++) {
     const top = neighbors[i].slice(0, kNearest);
@@ -129,6 +144,9 @@ export function redrawCandidateLines() {
       addWrappedPolyline(latlngs, S.CFG.CANDIDATE_STYLE, S.candidateLines);
     });
   }
+
+  // remember last computed kNearest to skip redundant redraws
+  S.lastKNearest = kNearest;
 }
 
 export async function renderCities(list, postCompute = true) {
@@ -148,6 +166,7 @@ export async function renderCities(list, postCompute = true) {
   S.currentCities.forEach((c) => {
     const m = L.circleMarker([c.lat, c.lon], {
       radius: S.CFG.MARKER_RADIUS,
+      renderer: S.mstCanvasRenderer,
     }).addTo(S.map);
     try {
       const container = document.createElement("div");
@@ -185,7 +204,7 @@ export async function renderCities(list, postCompute = true) {
   if (postCompute) {
     try {
       showSpinner(undefined, S.CFG.SPINNER_TEXT);
-    } catch (e) {}
+    } catch (e) { }
     postComputeMessage({
       type: "compute",
       cities: S.currentCities,
@@ -216,7 +235,5 @@ export async function renderCities(list, postCompute = true) {
   }
 
   S.animIndex = 0;
-  const total = (S.currentMST || []).reduce((s, e) => s + e.w, 0).toFixed(2);
-  const totalEl = document.getElementById("mstTotal");
-  if (totalEl) totalEl.textContent = "MST total length: " + total + " km";
+  updateMstTotal();
 }
