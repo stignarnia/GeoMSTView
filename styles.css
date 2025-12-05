@@ -497,22 +497,51 @@ body,
   min-height: 1.5em;
 }
 
-/* Ensure selects, options and inputs inside controls use the configured font and readable text color */
-.controls select,
+/* Ensure wa-select components and inputs inside controls use the configured font and readable text color */
+.controls wa-select,
 .controls input,
-.controls textarea,
-.controls option,
-#datasetSelect,
-#algoSelect {
+.controls textarea {
   color: var(--text-light);
   font-family: var(--font-family, "Fredoka", sans-serif);
-  background: transparent;
 }
 
-/* Options can have a darker panel background to improve contrast in native dropdowns */
-.controls select option {
-  color: var(--text-light);
+/* Style Web Awesome select components to match the design */
+wa-select {
+  --wa-input-background-color: transparent;
+  --wa-input-border-color: rgba(255, 255, 255, 0.06);
+  --wa-input-color: var(--text-light);
+  --wa-input-font-family: var(--font-family, "Fredoka", sans-serif);
+  --wa-input-border-radius: var(--btn-border-radius);
+  --wa-input-height-medium: var(--btn-height);
+}
+
+wa-select::part(combobox) {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.06);
+  font-size: inherit;
+}
+
+wa-select::part(listbox) {
   background: var(--bg-panel);
+  border-color: var(--border-light);
+  color: var(--text-light);
+  font-family: var(--font-family, "Fredoka", sans-serif);
+}
+
+wa-option {
+  --wa-color-neutral-0: var(--bg-panel);
+  --wa-color-neutral-50: var(--bg-overlay-light);
+  --wa-color-neutral-100: var(--bg-overlay-hover);
+  color: var(--text-light);
+  font-family: var(--font-family, "Fredoka", sans-serif);
+}
+
+wa-option::part(base) {
+  color: var(--text-light);
+}
+
+wa-option::part(base):hover {
+  background: var(--bg-overlay-hover);
 }
 
 /* Buttons should use the same app font only (no other style overrides) */

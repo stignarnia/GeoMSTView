@@ -20,6 +20,10 @@
   <link rel="apple-touch-icon" href="/favicon.png" />
 
   <link rel="stylesheet" href="styles.css" />
+  <script type="module">
+    import '@awesome.me/webawesome/dist/components/select/select.js';
+    import '@awesome.me/webawesome/dist/components/option/option.js';
+  </script>
 </head>
 
 <body>
@@ -31,13 +35,11 @@
     <div id="titleText"></div>
     <div class="datasetRow">
       <label for="datasetSelect">Dataset:</label>
-      <select id="datasetSelect">
-        <option value="capitals">Region capitals (default)</option>
-        <option value="preset">
-          Cities with population &gt; 50k (from OSM)
-        </option>
-        <option value="custom">Custom Overpass query...</option>
-      </select>
+      <wa-select id="datasetSelect" value="capitals">
+        <wa-option value="capitals">Region capitals (default)</wa-option>
+        <wa-option value="preset">Cities with population &gt; 50k (from OSM)</wa-option>
+        <wa-option value="custom">Custom Overpass query...</wa-option>
+      </wa-select>
       <button id="editCustom" title="Edit custom query" class="modalBtn btnRevert" aria-label="Edit">
         ✎
       </button>
@@ -46,10 +48,10 @@
     <div id="spinnerText" class="spinnerText" aria-live="polite"></div>
     <div class="datasetRow">
       <label for="algoSelect">Algorithm:</label>
-      <select id="algoSelect">
-        <option value="prim">Prim (default)</option>
-        <option value="kruskal">Kruskal (slower for big datasets)</option>
-      </select>
+      <wa-select id="algoSelect" value="prim">
+        <wa-option value="prim">Prim (default)</wa-option>
+        <wa-option value="kruskal">Kruskal (slower for big datasets)</wa-option>
+      </wa-select>
       <div class="algoSpacer"></div>
     </div>
     <div class="datasetRow">
